@@ -5,11 +5,11 @@ int main(int, char**)
     DemoApplication demo{"Vulkan", 800, 600};
     
     if (!demo.Init())
-        exit(1);
+        exit(EXIT_FAILURE);
       
     demo.Run();
 
     demo.ShutDown();
 
-    exit(0);
+    exit(EXIT_SUCCESS);
 }

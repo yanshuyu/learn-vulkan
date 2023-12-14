@@ -15,6 +15,9 @@ public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);
     ~DemoApplication();
 
+    DemoApplication(const DemoApplication&) = delete;
+    DemoApplication& operator = (const DemoApplication&) = delete;
+
 private:
     static void GlfwErrorCallBack(int errCode, const char* errMsg);
     bool SystemSetUp(); // window/vulkan initailtion

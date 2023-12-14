@@ -21,6 +21,7 @@ DemoApplication::~DemoApplication()
 
 bool DemoApplication::Init()
 {
+    std::cout << "Application Boots Up." << std::endl;
     bool ok = SystemSetUp();
     if (ok)
         ok &= Start();
@@ -47,6 +48,7 @@ void DemoApplication::ShutDown()
 {
     Release();
     SystemCleanUp();
+    std::cout << "Application Shut Down." << std::endl;
 }
 
 
@@ -98,6 +100,7 @@ void DemoApplication::SystemCleanUp()
     {
         glfwDestroyWindow(m_WndHandle);
         m_WndHandle = nullptr;
+        std::cout << "-->SystemCleanUp destory window." << std::endl;
     }
 
     glfwTerminate();
