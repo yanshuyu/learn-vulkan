@@ -1,15 +1,21 @@
 #pragma once
 #include<string>
+#include<vulkan\vulkan.h>
+#include<GLFW\glfw3.h>
 
-struct GLFWwindow;
 
 class DemoApplication
 {
+    // GLFW Window
 private:
     int m_WndWidth;
     int m_WndHeight;
     std::string m_WndTitle;
     GLFWwindow* m_WndHandle;
+
+    // Vulkan Device
+private:
+    VkInstance* m_pVkInstance;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);

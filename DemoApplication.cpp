@@ -1,15 +1,14 @@
 #include "DemoApplication.h"
 #include<iostream>
-#define GLFW_INCLUDE_VULKAN
-#include<GLFW\glfw3.h>
-
+#include"VulkanUtil.h"
 
 
 DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight)
 : m_WndTitle(wndTitle),
 m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
-m_WndHandle(nullptr)
+m_WndHandle(nullptr),
+m_pVkInstance(nullptr)
 {
 
 }
@@ -54,44 +53,58 @@ void DemoApplication::ShutDown()
 
 bool DemoApplication::SystemSetUp()
 {
-    bool result = true;
+    bool ok = true;
+    vector<string> instanceEnableExtendtionNames;
+    vector<string> instanceEnableLayerNames;
 
     std::cout << "-->SystemSetUp..." << std::endl;
 
-    //if (!glfwVulkanSupported())
-        //return false;
-
-
-    if (!glfwInit())
-    {
-        result = false;
+    // we load vulkan statically,  canonical desktop loader library exports all Vulkan core and Khronos extension functions, allowing them to be called directly.
+    // so we don't need call this function
+    /* 
+    ok &= static_cast<bool>(glfwVulkanSupported());
+    std::cout << "Detect Vulkan Supported: " << ok << std::endl;
+    if (!ok)
         goto init_result;
-    }
+    */
 
-    std::cout << "-->glfw Init Success." << std::endl;
-
+    ok &= static_cast<bool>(glfwInit());
+    std::cout << "-->glfw Init: " << ok << std::endl;
+    if (!ok)
+        goto init_result;
+    
     glfwSetErrorCallback(GlfwErrorCallBack);
 
     // Create Platform Specify Window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // bydefault, glfwCreateWindow will create window and proper opengl(es) context
                                                 // by set GLFW_CLIENT_API hint, we tell glfw create window for vulkan not gl
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    m_WndHandle = glfwCreateWindow(m_WndWidth, m_WndHeight, m_WndTitle.data(), nullptr, nullptr);
 
-    if (m_WndHandle == nullptr)
-    {
-        result = false;
+    m_WndHandle = glfwCreateWindow(m_WndWidth, m_WndHeight, m_WndTitle.data(), nullptr, nullptr);
+    ok &= (m_WndHandle != nullptr);
+    std::cout << "-->glfw Create Window: " << ok << std::endl;
+    if (!ok)
         goto init_result;
-    }
-    std::cout << "-->glfw Create Window Success." << std::endl;
 
     // Init Vulkan
-        
-
+    uint32_t glfwRequireInstanceExtensionCnt = 0;
+    const char** glfwRequireInstanceExtensionNames = glfwGetRequiredInstanceExtensions(&glfwRequireInstanceExtensionCnt);
+    instanceEnableExtendtionNames.resize(glfwRequireInstanceExtensionCnt);
+    for (size_t i = 0; i < glfwRequireInstanceExtensionCnt; i++)
+    {
+        instanceEnableExtendtionNames[i].assign(*glfwRequireInstanceExtensionNames);
+        glfwRequireInstanceExtensionNames++;
+    }
+    
+    ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, m_pVkInstance);
+    std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
+    if (!ok)
+        goto init_result;
+    
 
 init_result:
-    std::cout << "-->SystemSetUp Finish " << result << std::endl;  
-    return result;
+    std::cout << "-->SystemSetUp Finish " << ok << std::endl;  
+    return ok;
 }
 
 void DemoApplication::SystemCleanUp()
