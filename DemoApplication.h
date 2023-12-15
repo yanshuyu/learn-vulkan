@@ -15,7 +15,7 @@ private:
 
     // Vulkan Device
 private:
-    VkInstance* m_pVkInstance;
+    VkInstance m_vkInstance;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);

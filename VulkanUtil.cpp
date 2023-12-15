@@ -4,6 +4,7 @@
 
 bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions, const vector<string>& enableLayers, VkInstance* pCreatedInstance)
 {
+    // verify all extendsions are supported 
     uint32_t instanceSupportExtCnt = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &instanceSupportExtCnt, nullptr);
     vector<VkExtensionProperties> instanceSupportExtendsionProps(instanceSupportExtCnt);
@@ -27,7 +28,7 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions, const v
         }
     }
     
-
+    // query supported instance's version
     uint32_t apiVeriosn = 0;
     VkResult result = vkEnumerateInstanceVersion(&apiVeriosn);
     if (result != VK_SUCCESS)
@@ -36,10 +37,10 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions, const v
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_API_VERSION(1, 0, 0, 0);
+    appInfo.engineVersion = VK_MAKE_VERSION(1,0,0);
     appInfo.pApplicationName = "No Name";
-    appInfo.applicationVersion = VK_MAKE_API_VERSION(1, 0, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.applicationVersion = VK_MAKE_VERSION(1,0,0);
+    appInfo.apiVersion = apiVeriosn;
 
 
     vector<const char*> extendsionsNames(enableExtendsions.size());
@@ -58,12 +59,11 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions, const v
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledExtensionCount = 0;
-    createInfo.ppEnabledExtensionNames = nullptr;
-    createInfo.enabledLayerCount = 0;
-    createInfo.ppEnabledLayerNames = nullptr;
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extendsionsNames.size());
+    createInfo.ppEnabledExtensionNames = extendsionsNames.data();
+    createInfo.enabledLayerCount = static_cast<uint32_t>(layerNames.size());
+    createInfo.ppEnabledLayerNames = layerNames.data();
     createInfo.flags = 0;
-    
     result = vkCreateInstance(&createInfo, nullptr, pCreatedInstance);
 
     return result  == VK_SUCCESS;

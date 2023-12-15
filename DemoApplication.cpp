@@ -8,7 +8,7 @@ DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int 
 m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
 m_WndHandle(nullptr),
-m_pVkInstance(nullptr)
+m_vkInstance(0)
 {
 
 }
@@ -96,7 +96,7 @@ bool DemoApplication::SystemSetUp()
         glfwRequireInstanceExtensionNames++;
     }
     
-    ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, m_pVkInstance);
+    ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, &m_vkInstance);
     std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
     if (!ok)
         goto init_result;
