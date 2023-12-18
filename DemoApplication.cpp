@@ -8,7 +8,8 @@ DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int 
 m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
 m_WndHandle(nullptr),
-m_vkInstance(nullptr)
+m_vkInstance(nullptr),
+m_vkDebugMsger(nullptr)
 {
 
 }
@@ -86,7 +87,10 @@ bool DemoApplication::SystemSetUp()
     if (!ok)
         goto init_result;
 
+    ////////////////////////////////////////////////////////////////////////////////
     // Init Vulkan
+    /////////////////////////////////////////////////////////////////////////////////
+    //create vulkan instance
     uint32_t glfwRequireInstanceExtensionCnt = 0;
     const char** glfwRequireInstanceExtensionNames = glfwGetRequiredInstanceExtensions(&glfwRequireInstanceExtensionCnt);
     instanceEnableExtendtionNames.resize(glfwRequireInstanceExtensionCnt);
@@ -95,8 +99,11 @@ bool DemoApplication::SystemSetUp()
         instanceEnableExtendtionNames[i].assign(*glfwRequireInstanceExtensionNames);
         glfwRequireInstanceExtensionNames++;
     }
+    instanceEnableExtendtionNames.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // roung validation layer's debug msg to our callback fundtion
+    instanceEnableLayerNames.push_back(VulkanUtil::KHRONOS_STANDARD_VALIDATIONLAYER_NAME);
+
     
-    ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, &m_vkInstance);
+    ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, &m_vkInstance, &m_vkDebugMsger);
     std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
     if (!ok)
         goto init_result;
@@ -116,7 +123,8 @@ void DemoApplication::SystemCleanUp()
         std::cout << "-->SystemCleanUp destory window." << std::endl;
     }
 
-    VulkanUtil::DestoryInstance(&m_vkInstance);
+    VulkanUtil::DestoryInstance(&m_vkInstance, &m_vkDebugMsger);
+    std::cout << "-->SystemCleanUp Destroy Vulkan Instance." << std::endl;
 
     glfwTerminate();
 }

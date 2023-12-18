@@ -16,6 +16,7 @@ private:
     // Vulkan Device
 private:
     VkInstance m_vkInstance;
+    VkDebugUtilsMessengerEXT m_vkDebugMsger;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);
