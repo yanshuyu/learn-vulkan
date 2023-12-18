@@ -68,3 +68,14 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions, const v
 
     return result  == VK_SUCCESS;
 }
+
+
+void VulkanUtil::DestoryInstance(VkInstance* pInstance)
+{
+    if (pInstance == nullptr)
+        return;
+    
+    vkDestroyInstance(*pInstance, nullptr);
+    pInstance = nullptr;
+
+}

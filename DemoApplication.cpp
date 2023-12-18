@@ -8,7 +8,7 @@ DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int 
 m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
 m_WndHandle(nullptr),
-m_vkInstance(0)
+m_vkInstance(nullptr)
 {
 
 }
@@ -115,6 +115,8 @@ void DemoApplication::SystemCleanUp()
         m_WndHandle = nullptr;
         std::cout << "-->SystemCleanUp destory window." << std::endl;
     }
+
+    VulkanUtil::DestoryInstance(&m_vkInstance);
 
     glfwTerminate();
 }

@@ -12,4 +12,6 @@ class VulkanUtil
 public:
     static bool CreateInstance(const vector<string>& enableExtendsions, const vector<string>& enableLayers, VkInstance* pCreatedInstance);
 
+    static void DestoryInstance(VkInstance* pInstance);
+
 };
