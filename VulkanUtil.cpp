@@ -1,6 +1,7 @@
 #include"VulkanUtil.h"
 #include<iostream>
 #include<algorithm>
+#include"QueueFamilyIndices.h"
 
 const char* VulkanUtil::KHRONOS_STANDARD_VALIDATIONLAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
@@ -138,12 +139,12 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions,
 }
 
 
-void VulkanUtil::DestoryInstance(VkInstance* pInstance,  VkDebugUtilsMessengerEXT* pDebugMsger)
+bool VulkanUtil::DestoryInstance(VkInstance* pInstance,  VkDebugUtilsMessengerEXT* pDebugMsger)
 {
-    if (pInstance == nullptr)
-        return;
+    if (*pInstance == nullptr)
+        return false;
 
-    if (pDebugMsger != nullptr)
+    if (*pDebugMsger != nullptr)
     {
         auto destroyDebugMsgerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(*pInstance, "vkDestroyDebugUtilsMessengerEXT");
         if (destroyDebugMsgerFn != nullptr)
@@ -160,7 +161,141 @@ void VulkanUtil::DestoryInstance(VkInstance* pInstance,  VkDebugUtilsMessengerEX
     vkDestroyInstance(*pInstance, nullptr);
     pDebugMsger = nullptr;
     pInstance = nullptr;
+    return true;
 
+}
+
+
+bool VulkanUtil::CreateDevice(VkInstance* pInstance,
+                            VkQueueFlags enableQueueOperation, 
+                            const std::vector<string>& enableExtendsions, 
+                            VkDevice* pCreateDevice, 
+                            QueueFamilyIndices* pDeviceQueueFamilyIndices)
+{
+    if (pInstance == nullptr 
+        || pCreateDevice == nullptr
+        || pDeviceQueueFamilyIndices == nullptr)
+        return false;
+
+    // enumerate physical devices
+    uint32_t physicalDeviceCnt = 0;
+    vkEnumeratePhysicalDevices(*pInstance, &physicalDeviceCnt, nullptr);
+    vector<VkPhysicalDevice> physicalDevices(physicalDeviceCnt);
+    vkEnumeratePhysicalDevices(*pInstance, &physicalDeviceCnt, physicalDevices.data());
+    vector<VkPhysicalDeviceProperties> physicalDeviceProps(physicalDeviceCnt);
+
+    static char* s_PhysicalDeviceTypeNames[4]{
+        "Other",
+        "Integrated-GPU",
+        "Discrete-GPU",
+        "CPU",
+    };
+
+    std::cout << "-->Detect Physical Devices Install On System: " << physicalDeviceCnt << std::endl;
+    for (size_t i=0; i<physicalDeviceCnt; i++ )
+    {
+        vkGetPhysicalDeviceProperties(physicalDevices[i], &physicalDeviceProps[i]);
+        std::cout << "index\t" << "Device Name\t\t\t" << "Device Type\t\t\t" << "Driver Version" << std::endl;
+        std::cout << i << "\t" << physicalDeviceProps[i].deviceName << "\t" 
+        << s_PhysicalDeviceTypeNames[(size_t)physicalDeviceProps[i].deviceType] << "\t"
+        << physicalDeviceProps[i].driverVersion << std::endl;
+    }
+
+    // pick suitable physcial device    
+    size_t suitablePhyDeviceIndex = -1;
+    QueueFamilyIndices suitablePhyDeviceQueueFamilyIndices;
+    for (size_t i = 0; i < physicalDeviceCnt; i++)
+    {
+        suitablePhyDeviceQueueFamilyIndices.Query(physicalDevices[i]);
+        if ((suitablePhyDeviceQueueFamilyIndices.CombindQueueFamilyFlags() & enableQueueOperation) == enableQueueOperation)
+        {
+            suitablePhyDeviceIndex = i;
+            break;
+        }
+    }
+    
+    if (suitablePhyDeviceIndex == -1)
+    {
+        std::cout << "-->Failed to find suitable physical device for application" << std::endl;
+        return false;
+    }  
+
+    // create logical device
+    auto queueFamilyIndices = suitablePhyDeviceQueueFamilyIndices.UniqueQueueFamilyIndices();
+    vector<VkDeviceQueueCreateInfo> queueCreateInfos(queueFamilyIndices.size());
+    float defaultQueuePriorty = 1;
+    size_t i = 0;
+    for (auto& idx : queueFamilyIndices)
+    {
+        queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfos[i].flags = 0;
+        queueCreateInfos[i].pNext = nullptr;
+        queueCreateInfos[i].queueFamilyIndex = idx;
+        queueCreateInfos[i].queueCount = 1;
+        queueCreateInfos[i].pQueuePriorities = &defaultQueuePriorty;
+        i++;
+    }
+
+    vector<const char*> enableExtendsionNames(enableExtendsions.size());
+    for (size_t i = 0; i < enableExtendsions.size(); i++)
+    {
+        enableExtendsionNames[i] = enableExtendsions[i].c_str();
+    }
+
+    // Check All Device Extendions Are Supported
+    uint32_t deviceSupportedExtendsionCnt = 0;
+    vkEnumerateDeviceExtensionProperties(physicalDevices[suitablePhyDeviceIndex], nullptr, &deviceSupportedExtendsionCnt, nullptr);
+    vector<VkExtensionProperties> deviceSupportedExtendsionProps(deviceSupportedExtendsionCnt);
+    vkEnumerateDeviceExtensionProperties(physicalDevices[suitablePhyDeviceIndex], nullptr, &deviceSupportedExtendsionCnt, deviceSupportedExtendsionProps.data());
+    std::cout << "--> Detecte Device Supported Extendsions: " << deviceSupportedExtendsionCnt << std::endl; 
+    for (const auto& extProp : deviceSupportedExtendsionProps)
+    {
+        std::cout << "\t" << extProp.extensionName << "\t" << extProp.specVersion << std::endl;
+    }
+    
+    for (const auto& ext : enableExtendsions)
+    {
+        auto pos = std::find_if(deviceSupportedExtendsionProps.begin(), deviceSupportedExtendsionProps.end(), [&](const VkExtensionProperties& extProp){
+            return strcmp(ext.c_str(), extProp.extensionName) == 0;
+        });
+
+        if (pos == deviceSupportedExtendsionProps.end())
+        {
+            std::cout << "-->Extendsion " << ext << "Is Not Supported By Device!" << std::endl;
+            return false;
+        }  
+    }
+    
+    
+    VkDeviceCreateInfo deviceCreateInfo{};
+    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    deviceCreateInfo.flags = 0;
+    deviceCreateInfo.pNext = nullptr;
+    deviceCreateInfo.enabledLayerCount = 0;
+    deviceCreateInfo.ppEnabledLayerNames = nullptr; // depcrecated
+    deviceCreateInfo.queueCreateInfoCount = queueCreateInfos.size();
+    deviceCreateInfo.pQueueCreateInfos = queueCreateInfos.data();
+    deviceCreateInfo.enabledExtensionCount = enableExtendsionNames.size();
+    deviceCreateInfo.ppEnabledExtensionNames = enableExtendsionNames.data();
+    deviceCreateInfo.pEnabledFeatures = nullptr;
+
+    VkResult createResult = vkCreateDevice(physicalDevices[suitablePhyDeviceIndex], &deviceCreateInfo, nullptr, pCreateDevice);
+    if (createResult == VK_SUCCESS)
+        *pDeviceQueueFamilyIndices = suitablePhyDeviceQueueFamilyIndices;
+
+    return createResult == VK_SUCCESS;
+}
+
+
+bool VulkanUtil::DestroyDevice(VkDevice* pDevice)
+{
+    if (*pDevice == nullptr)
+        return false;
+    
+    vkDeviceWaitIdle(*pDevice); // a device's workload must finish before it's destroyed
+    vkDestroyDevice(*pDevice, nullptr);
+    pDevice = nullptr;
+    return true;
 }
 
 

@@ -2,6 +2,7 @@
 #include<vulkan\vulkan.h>
 #include<vector>
 #include<string>
+#include"QueueFamilyIndices.h"
 
 using std::vector;
 using std::string;
@@ -22,6 +23,14 @@ public:
                                  VkInstance* pCreatedInstance, 
                                  VkDebugUtilsMessengerEXT* pCreatedDebugMsger);
 
-    static void DestoryInstance(VkInstance* pInstance, VkDebugUtilsMessengerEXT* pDebugMsger);
+    static bool DestoryInstance(VkInstance* pInstance, VkDebugUtilsMessengerEXT* pDebugMsger);
+
+    static bool CreateDevice(VkInstance* pInstance,
+                            VkQueueFlags enableQueueOperation, 
+                            const std::vector<string>& enableExtendsions, 
+                            VkDevice* pCreateDevice, 
+                            QueueFamilyIndices* pDeviceQueueFamilyIndices);
+
+    static bool DestroyDevice(VkDevice* pDevice);
 
 };

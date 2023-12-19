@@ -9,7 +9,9 @@ m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
 m_WndHandle(nullptr),
 m_vkInstance(nullptr),
-m_vkDebugMsger(nullptr)
+m_vkDebugMsger(nullptr),
+m_vkDevice(nullptr),
+m_vkDeviceQueueFamilyIndices()
 {
 
 }
@@ -57,6 +59,7 @@ bool DemoApplication::SystemSetUp()
     bool ok = true;
     vector<string> instanceEnableExtendtionNames;
     vector<string> instanceEnableLayerNames;
+    vector<string> deviceEnabledExtendsions;
 
     std::cout << "-->SystemSetUp..." << std::endl;
 
@@ -105,6 +108,11 @@ bool DemoApplication::SystemSetUp()
     
     ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, &m_vkInstance, &m_vkDebugMsger);
     std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
+
+    // create vulkan device
+    ok &= VulkanUtil::CreateDevice(&m_vkInstance, VK_QUEUE_GRAPHICS_BIT, deviceEnabledExtendsions, &m_vkDevice, &m_vkDeviceQueueFamilyIndices);
+    std::cout << "--> Create Vulkan Device: " << ok << std::endl;
+
     if (!ok)
         goto init_result;
     
@@ -123,8 +131,12 @@ void DemoApplication::SystemCleanUp()
         std::cout << "-->SystemCleanUp destory window." << std::endl;
     }
 
-    VulkanUtil::DestoryInstance(&m_vkInstance, &m_vkDebugMsger);
-    std::cout << "-->SystemCleanUp Destroy Vulkan Instance." << std::endl;
+    if (VulkanUtil::DestroyDevice(&m_vkDevice))
+        std::cout << "-->SystemCleanUp Destroy Vulkan Device." << std::endl;
+
+    if (VulkanUtil::DestoryInstance(&m_vkInstance, &m_vkDebugMsger))
+        std::cout << "-->SystemCleanUp Destroy Vulkan Instance." << std::endl;
+
 
     glfwTerminate();
 }

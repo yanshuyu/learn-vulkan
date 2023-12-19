@@ -2,6 +2,7 @@
 #include<string>
 #include<vulkan\vulkan.h>
 #include<GLFW\glfw3.h>
+#include"QueueFamilyIndices.h"
 
 
 class DemoApplication
@@ -17,6 +18,8 @@ private:
 private:
     VkInstance m_vkInstance;
     VkDebugUtilsMessengerEXT m_vkDebugMsger;
+    VkDevice m_vkDevice;
+    QueueFamilyIndices m_vkDeviceQueueFamilyIndices;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);
