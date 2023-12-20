@@ -69,3 +69,9 @@ VkResult vkCreateDevice(
     const VkAllocationCallbacks*                pAllocator,
     VkDevice*                                   pDevice);
 ```
+The following is a high-level list of VkDevice useage:
+- Creation of queues.
+- Creation and tracking of various synchronization constructs.
+- Allocating, freeing, and managing memory.
+- Creation and destruction of command buffers and command buffer pools.
+- Creation, destruction, and management of graphics state(Pipelines and Resource Descriptors, among others).

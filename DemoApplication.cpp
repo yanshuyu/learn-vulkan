@@ -11,7 +11,8 @@ m_WndHandle(nullptr),
 m_vkInstance(nullptr),
 m_vkDebugMsger(nullptr),
 m_vkDevice(nullptr),
-m_vkDeviceQueueFamilyIndices()
+m_vkDeviceQueueFamilyIndices(),
+m_vkDeviceGraphicQueue(nullptr)
 {
 
 }
@@ -110,12 +111,19 @@ bool DemoApplication::SystemSetUp()
     std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
 
     // create vulkan device
-    ok &= VulkanUtil::CreateDevice(&m_vkInstance, VK_QUEUE_GRAPHICS_BIT, deviceEnabledExtendsions, &m_vkDevice, &m_vkDeviceQueueFamilyIndices);
-    std::cout << "--> Create Vulkan Device: " << ok << std::endl;
+    ok &= VulkanUtil::CreateDevice(&m_vkInstance, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT, deviceEnabledExtendsions, &m_vkDevice, &m_vkDeviceQueueFamilyIndices);
+    std::cout << "-->Create Vulkan Device: " << ok << std::endl;
 
     if (!ok)
         goto init_result;
     
+    vkGetDeviceQueue(m_vkDevice, m_vkDeviceQueueFamilyIndices.GrapicQueueFamilyIndex(), 0, &m_vkDeviceGraphicQueue);
+    if (m_vkDeviceGraphicQueue == nullptr)
+    {
+        std::cout <<"-->Failed to Get Graphices Queue." << std::endl;
+        ok = false;
+        goto init_result;
+    }
 
 init_result:
     std::cout << "-->SystemSetUp Finish " << ok << std::endl;  

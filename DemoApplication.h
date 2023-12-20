@@ -20,6 +20,7 @@ private:
     VkDebugUtilsMessengerEXT m_vkDebugMsger;
     VkDevice m_vkDevice;
     QueueFamilyIndices m_vkDeviceQueueFamilyIndices;
+    VkQueue m_vkDeviceGraphicQueue;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);
