@@ -22,6 +22,13 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions,
         std::cout << "\t" << extProp.extensionName << std::endl; 
     }
 
+        
+    std::cout << "-->Enabled Instance Extendsions: " << enableExtendsions.size() << std::endl;
+    for (const auto& ext : enableExtendsions)
+    {
+        std::cout << "\t" << ext << std::endl;
+    }
+
     for (const auto &ext : enableExtendsions)
     {
         auto pos = std::find_if(instanceSupportExtendsionProps.begin(), instanceSupportExtendsionProps.end(),[&ext](const auto& extProp){
@@ -45,6 +52,13 @@ bool VulkanUtil::CreateInstance(const vector<string>& enableExtendsions,
     {
         std::cout << "\t" << layProp.layerName << std::endl;
         std::cout << "\t\t" << layProp.description << std::endl; 
+    }
+
+        
+    std::cout << "-->Enabled Instance Layers: " << enableLayers.size() << std::endl;
+    for (const auto& layer : enableLayers)
+    {
+        std::cout << "\t" << layer << std::endl;
     }
 
     for (const auto& lay : enableLayers)
@@ -167,12 +181,16 @@ bool VulkanUtil::DestoryInstance(VkInstance* pInstance,  VkDebugUtilsMessengerEX
 
 
 bool VulkanUtil::CreateDevice(VkInstance* pInstance,
+                            VkSurfaceKHR* pSuface,
                             VkQueueFlags enableQueueOperation, 
                             const std::vector<string>& enableExtendsions, 
                             VkDevice* pCreateDevice, 
                             QueueFamilyIndices* pDeviceQueueFamilyIndices)
 {
     if (pInstance == nullptr 
+        || *pInstance == nullptr
+        || pSuface == nullptr
+        || *pSuface == nullptr
         || pCreateDevice == nullptr
         || pDeviceQueueFamilyIndices == nullptr)
         return false;
@@ -207,7 +225,8 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
     for (size_t i = 0; i < physicalDeviceCnt; i++)
     {
         suitablePhyDeviceQueueFamilyIndices.Query(physicalDevices[i]);
-        if ((suitablePhyDeviceQueueFamilyIndices.CombindQueueFamilyFlags() & enableQueueOperation) == enableQueueOperation)
+        if ((suitablePhyDeviceQueueFamilyIndices.CombindQueueFamilyFlags() & enableQueueOperation) == enableQueueOperation
+            && suitablePhyDeviceQueueFamilyIndices.IsPresentSupported(*pSuface))
         {
             suitablePhyDeviceIndex = i;
             break;
@@ -241,7 +260,7 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
     {
         enableExtendsionNames[i] = enableExtendsions[i].c_str();
     }
-
+        
     // Check All Device Extendions Are Supported
     uint32_t deviceSupportedExtendsionCnt = 0;
     vkEnumerateDeviceExtensionProperties(physicalDevices[suitablePhyDeviceIndex], nullptr, &deviceSupportedExtendsionCnt, nullptr);
@@ -251,6 +270,12 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
     for (const auto& extProp : deviceSupportedExtendsionProps)
     {
         std::cout << "\t" << extProp.extensionName << "\t" << extProp.specVersion << std::endl;
+    }
+
+    std::cout << "--> Enabled Device Extendsions: " << enableExtendsions.size() << std::endl;
+    for (const auto& ext : enableExtendsions)
+    {
+        std::cout << "\t" << ext << std::endl;
     }
     
     for (const auto& ext : enableExtendsions)
@@ -265,6 +290,7 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
             return false;
         }  
     }
+
     
     
     VkDeviceCreateInfo deviceCreateInfo{};
@@ -304,6 +330,9 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanUtil::DebugMessengerCallback(VkDebugUtilsMe
                                                                 const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
                                                                 void* pUserData)
 {
+    if (msgSeverity <= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+        return false;
+
     static const char* vkValidationMsg = "[Vulkan Validation Msg]\t";
     char* msgSeverityStr = "Unknow";
     char* msgTypeStr = "Unknow";

@@ -8,11 +8,13 @@ DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int 
 m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
 m_WndHandle(nullptr),
+m_vkSurface(nullptr),
 m_vkInstance(nullptr),
 m_vkDebugMsger(nullptr),
 m_vkDevice(nullptr),
 m_vkDeviceQueueFamilyIndices(),
-m_vkDeviceGraphicQueue(nullptr)
+m_vkDeviceGraphicQueue(nullptr),
+m_vkDevicePresentQueue(nullptr)
 {
 
 }
@@ -72,7 +74,9 @@ bool DemoApplication::SystemSetUp()
     if (!ok)
         goto init_result;
     */
-
+    ////////////////////////////////////////////////////////////
+    // Init Window
+    ////////////////////////////////////////////////////////////
     ok &= static_cast<bool>(glfwInit());
     std::cout << "-->glfw Init: " << ok << std::endl;
     if (!ok)
@@ -110,15 +114,31 @@ bool DemoApplication::SystemSetUp()
     ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, &m_vkInstance, &m_vkDebugMsger);
     std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
 
-    // create vulkan device
-    ok &= VulkanUtil::CreateDevice(&m_vkInstance, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT, deviceEnabledExtendsions, &m_vkDevice, &m_vkDeviceQueueFamilyIndices);
-    std::cout << "-->Create Vulkan Device: " << ok << std::endl;
+    // Create vulkan platform specific window surface
+    ok &= glfwCreateWindowSurface(m_vkInstance, m_WndHandle, nullptr, &m_vkSurface) == VK_SUCCESS;
+    std::cout << "-->Create Vulkan Surface: " << ok << std::endl;
+    if (!ok)
+        goto init_result;
 
+    // create vulkan device
+    ok &= VulkanUtil::CreateDevice(&m_vkInstance, &m_vkSurface, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT, deviceEnabledExtendsions, &m_vkDevice, &m_vkDeviceQueueFamilyIndices);
+    std::cout << "-->Create Vulkan Device: " << ok << std::endl;
     if (!ok)
         goto init_result;
     
     vkGetDeviceQueue(m_vkDevice, m_vkDeviceQueueFamilyIndices.GrapicQueueFamilyIndex(), 0, &m_vkDeviceGraphicQueue);
+    std::cout << "-->Vulkan Device Graphic Queue Family Index: " << m_vkDeviceQueueFamilyIndices.GrapicQueueFamilyIndex() << std::endl;
     if (m_vkDeviceGraphicQueue == nullptr)
+    {
+        std::cout <<"-->Failed to Get Graphices Queue." << std::endl;
+        ok = false;
+        goto init_result;
+    }
+    
+
+    vkGetDeviceQueue(m_vkDevice, m_vkDeviceQueueFamilyIndices.PresentQueueFamilyIndex(m_vkSurface), 0, &m_vkDevicePresentQueue);
+     std::cout << "-->Vulkan Device Present Queue Family Index: " <<m_vkDeviceQueueFamilyIndices.PresentQueueFamilyIndex(m_vkSurface) << std::endl;
+    if (m_vkDevicePresentQueue == nullptr)
     {
         std::cout <<"-->Failed to Get Graphices Queue." << std::endl;
         ok = false;
@@ -137,6 +157,13 @@ void DemoApplication::SystemCleanUp()
         glfwDestroyWindow(m_WndHandle);
         m_WndHandle = nullptr;
         std::cout << "-->SystemCleanUp destory window." << std::endl;
+    }
+
+    if (m_vkSurface != nullptr)
+    {
+        vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, nullptr);
+        m_vkSurface = nullptr;
+        std::cout << "-->SystemCleanUp destory Vulkan Surface." << std::endl;
     }
 
     if (VulkanUtil::DestroyDevice(&m_vkDevice))

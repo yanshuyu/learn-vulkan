@@ -38,6 +38,13 @@ private:
         return m_QueueFamilyIndices[QUEUE_FAMILY_TRANSFER_INDEX];
     }
 
+    int PresentQueueFamilyIndex(VkSurfaceKHR surface) const;
+
+    bool IsPresentSupported(VkSurfaceKHR surface) const 
+    {
+        return PresentQueueFamilyIndex(surface) != -1;
+    }
+
 
     bool IsQueryed() const
     {

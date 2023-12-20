@@ -16,11 +16,13 @@ private:
 
     // Vulkan Device
 private:
+    VkSurfaceKHR m_vkSurface;
     VkInstance m_vkInstance;
     VkDebugUtilsMessengerEXT m_vkDebugMsger;
     VkDevice m_vkDevice;
     QueueFamilyIndices m_vkDeviceQueueFamilyIndices;
     VkQueue m_vkDeviceGraphicQueue;
+    VkQueue m_vkDevicePresentQueue;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);

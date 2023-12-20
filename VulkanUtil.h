@@ -26,6 +26,7 @@ public:
     static bool DestoryInstance(VkInstance* pInstance, VkDebugUtilsMessengerEXT* pDebugMsger);
 
     static bool CreateDevice(VkInstance* pInstance,
+                            VkSurfaceKHR* pSuface,
                             VkQueueFlags enableQueueOperation, 
                             const std::vector<string>& enableExtendsions, 
                             VkDevice* pCreateDevice, 

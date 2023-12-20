@@ -57,6 +57,26 @@ void QueueFamilyIndices::Query(VkPhysicalDevice device)
 }
 
 
+int QueueFamilyIndices::PresentQueueFamilyIndex(VkSurfaceKHR surface) const
+{
+    if (surface == nullptr || !m_IsQueryed)
+        return -1;
+
+    for (auto idx : m_QueueFamilyIndices)
+    {
+        if (idx == -1)
+            continue;
+        
+        VkBool32 result = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(m_pPhysicalDevice, idx, surface, &result);
+        if (result)
+            return idx;
+    }
+    
+    return -1;
+}
+
+
 VkQueueFlags QueueFamilyIndices::CombindQueueFamilyFlags() const 
 {
     VkQueueFlags result = 0;
