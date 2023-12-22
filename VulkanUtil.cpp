@@ -180,26 +180,18 @@ bool VulkanUtil::DestoryInstance(VkInstance* pInstance,  VkDebugUtilsMessengerEX
 }
 
 
-bool VulkanUtil::CreateDevice(VkInstance* pInstance,
-                            VkSurfaceKHR* pSuface,
-                            VkQueueFlags enableQueueOperation, 
-                            const std::vector<string>& enableExtendsions, 
-                            VkDevice* pCreateDevice, 
-                            QueueFamilyIndices* pDeviceQueueFamilyIndices)
-{
-    if (pInstance == nullptr 
-        || *pInstance == nullptr
-        || pSuface == nullptr
-        || *pSuface == nullptr
-        || pCreateDevice == nullptr
-        || pDeviceQueueFamilyIndices == nullptr)
+ bool VulkanUtil::FindPyhsicalDevice(VkInstance instance, VkSurfaceKHR surface, VkQueueFlags enableQueues, VkPhysicalDevice* pFoundedDevice)
+ {
+    if (instance == nullptr
+        || surface == nullptr
+        || pFoundedDevice == nullptr)
         return false;
 
     // enumerate physical devices
     uint32_t physicalDeviceCnt = 0;
-    vkEnumeratePhysicalDevices(*pInstance, &physicalDeviceCnt, nullptr);
+    vkEnumeratePhysicalDevices(instance, &physicalDeviceCnt, nullptr);
     vector<VkPhysicalDevice> physicalDevices(physicalDeviceCnt);
-    vkEnumeratePhysicalDevices(*pInstance, &physicalDeviceCnt, physicalDevices.data());
+    vkEnumeratePhysicalDevices(instance, &physicalDeviceCnt, physicalDevices.data());
     vector<VkPhysicalDeviceProperties> physicalDeviceProps(physicalDeviceCnt);
 
     static char* s_PhysicalDeviceTypeNames[4]{
@@ -225,8 +217,8 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
     for (size_t i = 0; i < physicalDeviceCnt; i++)
     {
         suitablePhyDeviceQueueFamilyIndices.Query(physicalDevices[i]);
-        if ((suitablePhyDeviceQueueFamilyIndices.CombindQueueFamilyFlags() & enableQueueOperation) == enableQueueOperation
-            && suitablePhyDeviceQueueFamilyIndices.IsPresentSupported(*pSuface))
+        if ((suitablePhyDeviceQueueFamilyIndices.CombindQueueFamilyFlags() & enableQueues) == enableQueues
+            && suitablePhyDeviceQueueFamilyIndices.IsPresentSupported(surface))
         {
             suitablePhyDeviceIndex = i;
             break;
@@ -239,12 +231,27 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
         return false;
     }  
 
+    *pFoundedDevice = physicalDevices[suitablePhyDeviceIndex];
+    return true;
+ }
+
+bool VulkanUtil::
+
+CreateDevice(VkPhysicalDevice phyDevice,
+            const std::vector<string>& enableExtendsions, 
+            VkDevice* pCreateDevice, 
+            QueueFamilyIndices* pDeviceQueueFamilyIndices)
+{
+    if (pCreateDevice == nullptr)
+        return false;
+
     // create logical device
-    auto queueFamilyIndices = suitablePhyDeviceQueueFamilyIndices.UniqueQueueFamilyIndices();
-    vector<VkDeviceQueueCreateInfo> queueCreateInfos(queueFamilyIndices.size());
+    auto queueFamilyIndices = QueueFamilyIndices(phyDevice);
+    auto compactQueueFamilyIndices = queueFamilyIndices.UniqueQueueFamilyIndices();
+    vector<VkDeviceQueueCreateInfo> queueCreateInfos(compactQueueFamilyIndices.size());
     float defaultQueuePriorty = 1;
     size_t i = 0;
-    for (auto& idx : queueFamilyIndices)
+    for (auto& idx : compactQueueFamilyIndices)
     {
         queueCreateInfos[i].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfos[i].flags = 0;
@@ -263,9 +270,9 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
         
     // Check All Device Extendions Are Supported
     uint32_t deviceSupportedExtendsionCnt = 0;
-    vkEnumerateDeviceExtensionProperties(physicalDevices[suitablePhyDeviceIndex], nullptr, &deviceSupportedExtendsionCnt, nullptr);
+    vkEnumerateDeviceExtensionProperties(phyDevice, nullptr, &deviceSupportedExtendsionCnt, nullptr);
     vector<VkExtensionProperties> deviceSupportedExtendsionProps(deviceSupportedExtendsionCnt);
-    vkEnumerateDeviceExtensionProperties(physicalDevices[suitablePhyDeviceIndex], nullptr, &deviceSupportedExtendsionCnt, deviceSupportedExtendsionProps.data());
+    vkEnumerateDeviceExtensionProperties(phyDevice, nullptr, &deviceSupportedExtendsionCnt, deviceSupportedExtendsionProps.data());
     std::cout << "--> Detecte Device Supported Extendsions: " << deviceSupportedExtendsionCnt << std::endl; 
     for (const auto& extProp : deviceSupportedExtendsionProps)
     {
@@ -305,9 +312,9 @@ bool VulkanUtil::CreateDevice(VkInstance* pInstance,
     deviceCreateInfo.ppEnabledExtensionNames = enableExtendsionNames.data();
     deviceCreateInfo.pEnabledFeatures = nullptr;
 
-    VkResult createResult = vkCreateDevice(physicalDevices[suitablePhyDeviceIndex], &deviceCreateInfo, nullptr, pCreateDevice);
-    if (createResult == VK_SUCCESS)
-        *pDeviceQueueFamilyIndices = suitablePhyDeviceQueueFamilyIndices;
+    VkResult createResult = vkCreateDevice(phyDevice, &deviceCreateInfo, nullptr, pCreateDevice);
+    if (createResult == VK_SUCCESS && pDeviceQueueFamilyIndices != nullptr)
+        *pDeviceQueueFamilyIndices = queueFamilyIndices;
 
     return createResult == VK_SUCCESS;
 }

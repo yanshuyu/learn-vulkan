@@ -3,6 +3,7 @@
 #include<vulkan\vulkan.h>
 #include<GLFW\glfw3.h>
 #include"QueueFamilyIndices.h"
+#include"SwapChain.h"
 
 
 class DemoApplication
@@ -23,6 +24,7 @@ private:
     QueueFamilyIndices m_vkDeviceQueueFamilyIndices;
     VkQueue m_vkDeviceGraphicQueue;
     VkQueue m_vkDevicePresentQueue;
+    SwapChain m_SwapChain;
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);

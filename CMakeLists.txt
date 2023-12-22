@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(LearnVulkan VERSION 0.1.0 LANGUAGES C CXX)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 set(GLFW_INC_DIR ${PROJECT_SOURCE_DIR}/glfw/include)
 set(GLFW_LIB_DIR ${PROJECT_SOURCE_DIR}/glfw/lib-vc2022)
 set(VULKAN_INC_DIR ${PROJECT_SOURCE_DIR}/vulkan/Include)
