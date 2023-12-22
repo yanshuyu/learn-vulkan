@@ -112,7 +112,36 @@ bool SwapChain::Create( VkSurfaceFormatKHR prefferFmt,
     swapChainCrateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 
     bool ok = vkCreateSwapchainKHR(m_vkDevice, &swapChainCrateInfo, nullptr, &m_vkSwapChain) == VK_SUCCESS;
-    
+    if (ok)
+    {
+        uint32_t imageCnt = 0;
+        vkGetSwapchainImagesKHR(m_vkDevice, m_vkSwapChain, &imageCnt, nullptr);
+        m_SwapChainImages.resize(imageCnt);
+        vkGetSwapchainImagesKHR(m_vkDevice, m_vkSwapChain, &imageCnt, m_SwapChainImages.data());
+
+        m_SwapChainImageViews.resize(m_SwapChainImages.size());    
+        for (size_t i = 0; i < m_SwapChainImages.size(); i++)
+        {
+            VkImageViewCreateInfo viewCreateInfo{};
+            viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewCreateInfo.flags = 0;
+            viewCreateInfo.pNext = nullptr;
+            viewCreateInfo.image = m_SwapChainImages[i];
+            viewCreateInfo.format = m_SwapChainPxlFmt.format;
+            viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewCreateInfo.components.r =  viewCreateInfo.components.g = viewCreateInfo.components.b = viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            viewCreateInfo.subresourceRange.baseMipLevel = 0;
+            viewCreateInfo.subresourceRange.levelCount = 1;
+            viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+            viewCreateInfo.subresourceRange.layerCount = 1;
+            vkCreateImageView(m_vkDevice, &viewCreateInfo, nullptr, &m_SwapChainImageViews[i]);
+        }
+        
+
+        m_SwapChainPxlFmt = prefferFmt;
+        m_SwapChainPxlDimension = imageExtent;
+    }
     
     return ok;
 }

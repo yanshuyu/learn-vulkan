@@ -14,6 +14,11 @@ private:
     VkPhysicalDevice m_vkPhyDevice{VK_NULL_HANDLE};
     VkDevice m_vkDevice{VK_NULL_HANDLE};
     VkSwapchainKHR m_vkSwapChain{VK_NULL_HANDLE};
+
+    vector<VkImage> m_SwapChainImages{};
+    vector<VkImageView> m_SwapChainImageViews{};
+    VkSurfaceFormatKHR m_SwapChainPxlFmt{};
+    VkExtent2D m_SwapChainPxlDimension{};
     
 
 public:
