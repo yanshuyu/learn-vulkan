@@ -9,6 +9,16 @@ using std::vector;
 class GraphicPipeline 
 {
 
+private: 
+    struct CompiledShaderInfo
+    {
+        const char* pEntryName;
+        const char* pByteCode;
+        int byteCodeLen;
+        VkShaderStageFlagBits stage;
+    };
+    
+
 private:
     // vertex input
     vector<VkVertexInputBindingDescription> m_VIBindingDesc{};
@@ -38,8 +48,15 @@ private:
     bool m_AlphaToCoverageEnable;
     VkSampleCountFlagBits m_MsSampleCount;
 
+    // programmable shader stages
+    vector<CompiledShaderInfo> m_ShaderInfo{};
+
+    //pipeline access shader resource
+    vector<vector<VkDescriptorSetLayoutBinding>> m_DescriptorSetLayoutsBinding{};
+
     // pipeline
     VkPipeline m_Pipeline;
+    VkPipelineLayout m_PipelineLayout;
     VkDevice m_Device;
 
 public:
@@ -121,6 +138,13 @@ public:
     bool MSAlphaToCoverageEnabled() const { return m_AlphaToCoverageEnable; }
     void MSSetSampleCount(int sampleCnt);
     int MSGetSampleCount() const;
+
+    // Shader Stages
+    void VSSetShader(const char* shaderCode, int codeLen, const char* entryName);
+    void PSSetShader(const char* shaderCode, int codeLen, const char* entryName);
+
+    // Shader Resource
+    void SRBindResource(uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages, int layoutSetIdx = 0);
 
     bool Create(VkDevice device, bool forceCreate = false);
     bool IsCreate() const { return m_Pipeline != VK_NULL_HANDLE; }
