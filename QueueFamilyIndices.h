@@ -40,10 +40,13 @@ private:
 
     int PresentQueueFamilyIndex(VkSurfaceKHR surface) const;
 
+    int QueueFamilyIndexAtIndex(int idx) const { return m_QueueFamilyIndices[idx]; }
+    
     bool IsPresentSupported(VkSurfaceKHR surface) const 
     {
         return PresentQueueFamilyIndex(surface) != -1;
     }
+
 
 
     bool IsQueryed() const

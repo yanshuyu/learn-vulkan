@@ -1,6 +1,8 @@
 #include"Device.h"
 #include<iostream>
 #include<algorithm>
+#include<map>
+#include<utility>
 
 
 Device::Device()
@@ -13,8 +15,13 @@ Device::Device()
 , m_ApiVersion(0)
 , m_DebugEnabled(false)
 , m_OffScreenEnable(false)
+, m_PresentQueueFamilyIndex(-1)
 {
-
+    for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT * 2; i++)
+    {
+        m_DeviceCommandPools[i] = VK_NULL_HANDLE;
+    }
+    
 }
 
 Device::~Device()
@@ -50,14 +57,30 @@ Device::~Device()
     {
         vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.GrapicQueueFamilyIndex(), 0, &m_DeviceGraphicQueue);
         if (!m_OffScreenEnable && m_PresentSurface != VK_NULL_HANDLE)
-            vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.PresentQueueFamilyIndex(m_PresentSurface), 0, &m_DevicePresentQueue);
+        {   
+            m_PresentQueueFamilyIndex = m_DeviceQueueFamilyIndices.PresentQueueFamilyIndex(m_PresentSurface);
+            vkGetDeviceQueue(m_vkDevice, m_PresentQueueFamilyIndex, 0, &m_DevicePresentQueue);
+        }
+        ok &= CreateCommandPools();
     }
 
     return ok;
  }
 
+
 void Device::Release()
 {
+
+    for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT; i++)
+    {
+        if (m_DeviceCommandPools[i] != VK_NULL_HANDLE)
+        {
+            vkDestroyCommandPool(m_vkDevice, m_DeviceCommandPools[i], nullptr);
+            m_DeviceCommandPools[i] = VK_NULL_HANDLE;
+        }
+    }
+    
+
     if (m_vkDevice != VK_NULL_HANDLE)
     {
         vkDeviceWaitIdle(m_vkDevice); // ensure all job has finish before destroy any device
@@ -103,6 +126,7 @@ void Device::ResetAllHints()
     m_ApiVersion = 0;
     m_DebugEnabled = false;
     m_OffScreenEnable = false;
+    m_PresentQueueFamilyIndex = -1;
 }
 
 void Device::SetDeviceFeatureHint(HardwareFeature feature, bool enabled)
@@ -413,6 +437,59 @@ bool Device::CreateLogicalDevice()
     return result == VK_SUCCESS;
 }
 
+bool Device::CreateCommandPools()
+{
+    std::map<uint32_t, std::pair<VkCommandPool, VkCommandPool>> createdQueueFamilyCommandPools{};
+    for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT; i++)
+    {
+        uint32_t curQueueFamilyIndex = m_DeviceQueueFamilyIndices.QueueFamilyIndexAtIndex(i);
+        if (curQueueFamilyIndex != -1) 
+        {
+            auto pos = createdQueueFamilyCommandPools.find(curQueueFamilyIndex);
+            // create 2 command pool for this type of queue family (grapics / compute / transfer)
+            // one for shot time lives
+            // one for long time use, can reset to record again
+            if (pos == createdQueueFamilyCommandPools.end())
+            {
+                VkCommandPoolCreateInfo poolCreateInfo{};
+                poolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+                poolCreateInfo.pNext = nullptr;
+                poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+                poolCreateInfo.queueFamilyIndex = curQueueFamilyIndex;
+
+                VkCommandPool longLivePool = VK_NULL_HANDLE;
+                VkResult result = vkCreateCommandPool(m_vkDevice, &poolCreateInfo, nullptr, &longLivePool);
+                if (result != VK_SUCCESS)
+                {
+                    std::cout << "--> Create Command long live Pool For Queue Family Index: " << curQueueFamilyIndex << ", vulkan error: " << result << std::endl;
+                    return false;
+                }
+                m_DeviceCommandPools[i*2] = longLivePool;
+                
+                poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+                VkCommandPool shotTimePool = VK_NULL_HANDLE;
+                result = vkCreateCommandPool(m_vkDevice, &poolCreateInfo, nullptr, &shotTimePool);
+                if (result != VK_SUCCESS)
+                {
+                    std::cout << "--> Create Command shot time Pool For Queue Family Index: " << curQueueFamilyIndex << ", vulkan error: " << result << std::endl;
+                    return false;
+                }
+                m_DeviceCommandPools[i*2+1] = shotTimePool;
+
+                createdQueueFamilyCommandPools[curQueueFamilyIndex] = std::make_pair(longLivePool, shotTimePool);
+
+            }
+            else 
+            {
+                m_DeviceCommandPools[i*2] = createdQueueFamilyCommandPools[curQueueFamilyIndex].first;
+                m_DeviceCommandPools[i*2+1] = createdQueueFamilyCommandPools[curQueueFamilyIndex].second;   
+            }
+        }
+    }
+
+    return true;
+    
+}
 
 void Device::ApplyExtendionOrLayerHint(std::vector<std::string>& arr, const char* name, bool enabled)
 {
@@ -490,6 +567,36 @@ for (size_t i = 0; i < m_EnablePhyDeviceFeatures.size(); i++)
 return phyDeviceFeatures;
 }
 
+
+ VkCommandPool Device::GetCommandPool(JobOperation op, bool temprary)
+ {
+    int cmdPoolIdx = -1;
+    switch (op)
+    {
+    case grapic:
+        cmdPoolIdx = QUEUE_FAMILY_GRAPICS_INDEX;
+        break;
+    case compute:
+        cmdPoolIdx = QUEUE_FAMILY_COMPUTE_INDEX;
+    case transfer:
+        cmdPoolIdx = QUEUE_FAMILY_TRANSFER_INDEX;
+    case present:
+        if (!m_OffScreenEnable && m_DevicePresentQueue != VK_NULL_HANDLE)
+            cmdPoolIdx = m_PresentQueueFamilyIndex;
+        break;
+
+    default:
+        break;
+    }
+
+    if (cmdPoolIdx == -1)
+        return VK_NULL_HANDLE;
+    
+    if (temprary)
+        cmdPoolIdx++;
+
+    return m_DeviceCommandPools[cmdPoolIdx];
+ }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL Device::DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
                                                                 VkDebugUtilsMessageTypeFlagsEXT msgType,

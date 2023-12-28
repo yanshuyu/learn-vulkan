@@ -2,7 +2,9 @@
 #include<vulkan\vulkan.h>
 #include<string>
 #include<vector>
+#include<utility>
 #include"QueueFamilyIndices.h"
+#include"CommandBuffer.h"
 
 class Device
 {
@@ -18,13 +20,25 @@ public:
         // will add more
     };
 
+    enum JobOperation
+    {
+        none,
+        grapic,
+        compute,
+        transfer,
+        present,
+    };
+
 private:
+    uint32_t m_ApiVersion;
+    bool m_DebugEnabled;
     VkInstance m_vkInstance;
     std::vector<std::string> m_InstanceExtendsions{};
     std::vector<std::string> m_InstanceLayers{};
 
     VkDebugUtilsMessengerEXT m_vkDebugMsger;
     
+    bool m_OffScreenEnable;
     VkSurfaceKHR m_PresentSurface;
     VkQueueFlags m_EnableQueueOperations;
 
@@ -36,10 +50,9 @@ private:
     VkDevice m_vkDevice;
     VkQueue m_DeviceGraphicQueue;
     VkQueue m_DevicePresentQueue; 
+    int m_PresentQueueFamilyIndex;
 
-    uint32_t m_ApiVersion;
-    bool m_DebugEnabled;
-    bool m_OffScreenEnable;
+    VkCommandPool m_DeviceCommandPools[QUEUE_FAMILY_MAX_COUNT * 2];
 public:
     Device();
     ~Device();
@@ -67,10 +80,14 @@ public:
     VkPhysicalDevice GetRawPhysicalDevice() const { return m_vkPhyDevice; }
     VkDevice GetRawDevice() const { return m_vkDevice; }
 
+
 private:
     bool CreateInstance();
     bool FindPyhsicalDevice();
     bool CreateLogicalDevice();
+    bool CreateCommandPools();
+
+    VkCommandPool GetCommandPool(JobOperation op, bool temprary);
 
     void ApplyExtendionOrLayerHint(std::vector<std::string>& arr, const char* name, bool enabled);
     bool AllHardWareFeatureSupported() const;
