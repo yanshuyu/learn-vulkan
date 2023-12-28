@@ -238,7 +238,7 @@ int GraphicPipeline::MSGetSampleCount() const
 
 
 
-bool GraphicPipeline::Create(VkDevice device, bool forceCreate)
+bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t subPass, bool forceCreate)
 {
     if (device == VK_NULL_HANDLE)
         return false;
@@ -256,6 +256,7 @@ bool GraphicPipeline::Create(VkDevice device, bool forceCreate)
     viInfo.pVertexAttributeDescriptions = m_VIAttrsDesc.data();
 
     VkPipelineInputAssemblyStateCreateInfo iaInfo{};
+
     iaInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     iaInfo.flags = 0;
     iaInfo.pNext = nullptr;;
@@ -297,44 +298,15 @@ bool GraphicPipeline::Create(VkDevice device, bool forceCreate)
     dyStateInfo.pDynamicStates = m_DynamicStates.data();
 
 
-    vector<VkShaderModule> shaderModules{};  
-    vector<std::unique_ptr<VkShaderModule, std::function<void(VkShaderModule*)>>> shaderMoudlesAutoReleaseTemp{};
     vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos{};
-    shaderModules.reserve(m_ShaderInfo.size());
-    shaderMoudlesAutoReleaseTemp.reserve(m_ShaderInfo.size());
     shaderStageCreateInfos.reserve(m_ShaderInfo.size());
     for (size_t i = 0; i < m_ShaderInfo.size(); i++)
     {   
-        VkShaderModuleCreateInfo shaderModuleCreateInfo{};
-        shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderModuleCreateInfo.flags = 0;
-        shaderModuleCreateInfo.pNext = nullptr;
-        shaderModuleCreateInfo.pCode = reinterpret_cast<const uint32_t*>(m_ShaderInfo[i].pByteCode);
-        shaderModuleCreateInfo.codeSize = m_ShaderInfo[i].byteCodeLen;
-
-        VkShaderModule shaderModule = VK_NULL_HANDLE;
-        VkResult result = vkCreateShaderModule(m_Device, &shaderModuleCreateInfo, nullptr, &shaderModule);
-        if( result != VK_SUCCESS)
-        {
-            std::cout << "--> Create Shader Moudle Failed: " << result << std::endl;
-            return false;
-        }
-
-        shaderModules.push_back(shaderModule);
-        shaderMoudlesAutoReleaseTemp.emplace_back(&shaderModules[i], [=](VkShaderModule* _shaderModule)
-        {
-            if (*_shaderModule != VK_NULL_HANDLE)
-             {
-                vkDestroyShaderModule(device, *_shaderModule, nullptr);
-                *_shaderModule = VK_NULL_HANDLE;
-             }
-        });
-
         VkPipelineShaderStageCreateInfo shaderStageCreateInfo{};
         shaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStageCreateInfo.pNext = nullptr;
         shaderStageCreateInfo.flags = 0;
-        shaderStageCreateInfo.module = shaderModules[i];
+        shaderStageCreateInfo.module = m_ShaderInfo[i].shaderMoudle;
         shaderStageCreateInfo.pName = m_ShaderInfo[i].pEntryName;
         shaderStageCreateInfo.stage = m_ShaderInfo[i].stage;
         shaderStageCreateInfo.pSpecializationInfo = nullptr;
@@ -409,7 +381,8 @@ bool GraphicPipeline::Create(VkDevice device, bool forceCreate)
     // pipeline access shader resource
     createInfo.layout = pipelineLayout;
     // compatible render pass
-
+    createInfo.renderPass = renderPass;
+    createInfo.subpass = subPass;
     //other
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex = 0;
@@ -436,49 +409,24 @@ bool GraphicPipeline::Create(VkDevice device, bool forceCreate)
 }
 
 
-void GraphicPipeline::VSSetShader(const char* shaderCode, int codeLen, const char* entryName)
+void GraphicPipeline::SetShader(VkShaderModule shaderMoule, VkShaderStageFlagBits shaderStage, const char* entryName)
 {
-    auto pos = std::find_if(m_ShaderInfo.begin(), m_ShaderInfo.end(), [](const CompiledShaderInfo &shaderInfo)
-        { return shaderInfo.stage == VK_SHADER_STAGE_VERTEX_BIT; });
+    auto pos = std::find_if(m_ShaderInfo.begin(), m_ShaderInfo.end(), [=](const ShaderStageInfo &shaderInfo)
+        { return shaderInfo.stage == shaderStage; });
 
     if(pos == m_ShaderInfo.end())
     {
-        CompiledShaderInfo shaderInfo{};
-        shaderInfo.pByteCode = shaderCode;
-        shaderInfo.byteCodeLen = codeLen;
+        ShaderStageInfo shaderInfo{};
+        shaderInfo.shaderMoudle = shaderMoule;
         shaderInfo.pEntryName = entryName;
         shaderInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
         m_ShaderInfo.push_back(shaderInfo);
     }
     else 
     {
-        pos->pByteCode = shaderCode;
-        pos->byteCodeLen = codeLen;
+        pos->shaderMoudle = shaderMoule;
         pos->pEntryName = entryName;
     }
-}
-
-void GraphicPipeline::PSSetShader(const char* shaderCode, int codeLen, const char* entryName)
-{   
-    auto pos = std::find_if(m_ShaderInfo.begin(), m_ShaderInfo.end(), [](const CompiledShaderInfo &shaderInfo)
-        { return shaderInfo.stage == VK_SHADER_STAGE_FRAGMENT_BIT; });
-
-    if(pos == m_ShaderInfo.end())
-    {
-        CompiledShaderInfo shaderInfo{};
-        shaderInfo.pByteCode = shaderCode;
-        shaderInfo.byteCodeLen = codeLen;
-        shaderInfo.pEntryName = entryName;
-        shaderInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_ShaderInfo.push_back(shaderInfo);
-    }
-    else 
-    {
-        pos->pByteCode = shaderCode;
-        pos->byteCodeLen = codeLen;
-        pos->pEntryName = entryName;
-    }
-
 }
 
 

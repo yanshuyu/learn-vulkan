@@ -1,8 +1,8 @@
-
 #pragma once
 #include<vulkan\vulkan.h>
 #include<vector>
 #include<numeric>
+#include"Shader.h"
 
 using std::vector;
 
@@ -10,11 +10,10 @@ class GraphicPipeline
 {
 
 private: 
-    struct CompiledShaderInfo
+    struct ShaderStageInfo
     {
         const char* pEntryName;
-        const char* pByteCode;
-        int byteCodeLen;
+        VkShaderModule shaderMoudle;
         VkShaderStageFlagBits stage;
     };
     
@@ -49,7 +48,7 @@ private:
     VkSampleCountFlagBits m_MsSampleCount;
 
     // programmable shader stages
-    vector<CompiledShaderInfo> m_ShaderInfo{};
+    vector<ShaderStageInfo> m_ShaderInfo{};
 
     //pipeline access shader resource
     vector<vector<VkDescriptorSetLayoutBinding>> m_DescriptorSetLayoutsBinding{};
@@ -140,13 +139,12 @@ public:
     int MSGetSampleCount() const;
 
     // Shader Stages
-    void VSSetShader(const char* shaderCode, int codeLen, const char* entryName);
-    void PSSetShader(const char* shaderCode, int codeLen, const char* entryName);
+    void SetShader(VkShaderModule shaderMoule, VkShaderStageFlagBits shaderStage, const char* entryName);
 
     // Shader Resource
     void SRBindResource(uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages, int layoutSetIdx = 0);
 
-    bool Create(VkDevice device, bool forceCreate = false);
+    bool Create(VkDevice device, VkRenderPass renderPass, uint32_t subPas = 0, bool forceCreate = false);
     bool IsCreate() const { return m_Pipeline != VK_NULL_HANDLE; }
     void Release();
 
