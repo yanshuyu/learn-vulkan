@@ -114,6 +114,10 @@ bool SwapChain::Create( VkSurfaceFormatKHR prefferFmt,
     bool ok = vkCreateSwapchainKHR(m_vkDevice, &swapChainCrateInfo, nullptr, &m_vkSwapChain) == VK_SUCCESS;
     if (ok)
     {
+        
+        m_SwapChainPxlFmt = prefferFmt;
+        m_SwapChainPxlDimension = imageExtent;
+
         uint32_t imageCnt = 0;
         vkGetSwapchainImagesKHR(m_vkDevice, m_vkSwapChain, &imageCnt, nullptr);
         m_SwapChainImages.resize(imageCnt);
@@ -137,10 +141,6 @@ bool SwapChain::Create( VkSurfaceFormatKHR prefferFmt,
             viewCreateInfo.subresourceRange.layerCount = 1;
             vkCreateImageView(m_vkDevice, &viewCreateInfo, nullptr, &m_SwapChainImageViews[i]);
         }
-        
-
-        m_SwapChainPxlFmt = prefferFmt;
-        m_SwapChainPxlDimension = imageExtent;
     }
     
     return ok;
@@ -152,6 +152,13 @@ void SwapChain::Release()
 {
     if (!IsCreated())
         return;
+
+    for (auto && imageView : m_SwapChainImageViews)
+    {
+        if (imageView != VK_NULL_HANDLE)
+            vkDestroyImageView(m_vkDevice, imageView, nullptr);
+    }
+    
     
     vkDestroySwapchainKHR(m_vkDevice, m_vkSwapChain, nullptr);
     m_vkPhyDevice = VK_NULL_HANDLE;
@@ -161,4 +168,8 @@ void SwapChain::Release()
     m_capabilities = {};
     m_SupportedFormats.clear();
     m_SupportedPresentModes.clear();
+    m_SwapChainImages.clear();
+    m_SwapChainImageViews.clear();
+    m_SwapChainPxlDimension = {0, 0};
+    m_SwapChainPxlFmt = {};
 }
