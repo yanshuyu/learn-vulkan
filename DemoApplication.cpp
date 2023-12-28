@@ -1,7 +1,8 @@
 #include "DemoApplication.h"
 #include<iostream>
-#include"VulkanUtil.h"
 
+
+#define KHRONOS_STANDARD_VALIDATIONLAYER_NAME "VK_LAYER_KHRONOS_validation"
 
 DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight)
 : m_WndTitle(wndTitle),
@@ -9,12 +10,6 @@ m_WndWidth(wndWidth),
 m_WndHeight(wndHeight),
 m_WndHandle(nullptr),
 m_vkSurface(nullptr),
-m_vkInstance(nullptr),
-m_vkDebugMsger(nullptr),
-m_vkDevice(nullptr),
-m_vkDeviceQueueFamilyIndices(),
-m_vkDeviceGraphicQueue(nullptr),
-m_vkDevicePresentQueue(nullptr),
 m_SwapChain()
 {
 
@@ -61,9 +56,6 @@ void DemoApplication::ShutDown()
 bool DemoApplication::SystemSetUp()
 {
     bool ok = true;
-    vector<string> instanceEnableExtendtionNames;
-    vector<string> instanceEnableLayerNames;
-    vector<string> deviceEnabledExtendsions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
     VkSurfaceFormatKHR swapChainPiexlFmt{};
     VkExtent2D swapChainPiexlDimension{};
 
@@ -104,61 +96,38 @@ bool DemoApplication::SystemSetUp()
     //create vulkan instance
     uint32_t glfwRequireInstanceExtensionCnt = 0;
     const char** glfwRequireInstanceExtensionNames = glfwGetRequiredInstanceExtensions(&glfwRequireInstanceExtensionCnt);
-    instanceEnableExtendtionNames.resize(glfwRequireInstanceExtensionCnt);
     for (size_t i = 0; i < glfwRequireInstanceExtensionCnt; i++)
     {
-        instanceEnableExtendtionNames[i].assign(*glfwRequireInstanceExtensionNames);
+        m_Device.SetInstanceExtendsionHint(*glfwRequireInstanceExtensionNames, true);
         glfwRequireInstanceExtensionNames++;
     }
-    instanceEnableExtendtionNames.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // roung validation layer's debug msg to our callback fundtion
-    instanceEnableLayerNames.push_back(VulkanUtil::KHRONOS_STANDARD_VALIDATIONLAYER_NAME);
-
+    m_Device.SetInstanceExtendsionHint(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true); // roung validation layer's debug msg to our callback fundtion
+    m_Device.SetInstanceLayerHint(KHRONOS_STANDARD_VALIDATIONLAYER_NAME, true);
+    m_Device.SetDebugEnableHint(true);
+    m_Device.SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
     
-    ok &= VulkanUtil::CreateInstance(instanceEnableExtendtionNames, instanceEnableLayerNames, &m_vkInstance, &m_vkDebugMsger);
-    std::cout << "-->Create Vulkan Instance: " << ok << std::endl;
-
+    
+    ok &= m_Device.Initialize();
+    if (!ok)
+        goto init_result;
+    
     // Create vulkan platform specific window surface
-    ok &= glfwCreateWindowSurface(m_vkInstance, m_WndHandle, nullptr, &m_vkSurface) == VK_SUCCESS;
+    ok &= glfwCreateWindowSurface(m_Device.GetRawInstance(), m_WndHandle, nullptr, &m_vkSurface) == VK_SUCCESS;
     std::cout << "-->Create Vulkan Surface: " << ok << std::endl;
     if (!ok)
         goto init_result;
 
     // Pick Suitable Physical Device
-    VkPhysicalDevice phyDevice = VK_NULL_HANDLE;
-    ok &= VulkanUtil::FindPyhsicalDevice(m_vkInstance, m_vkSurface, VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_TRANSFER_BIT, &phyDevice);
-    std::cout << "-->Found Suitable Physical Device: " << ok << std::endl;
+   
+    ok &= m_Device.Create();
     if (!ok)
         goto init_result;
-
-    // create vulkan device
-    ok &= VulkanUtil::CreateDevice(phyDevice, deviceEnabledExtendsions, &m_vkDevice, &m_vkDeviceQueueFamilyIndices);
-    std::cout << "-->Create Vulkan Device: " << ok << std::endl;
-    if (!ok)
-        goto init_result;
-    
-    vkGetDeviceQueue(m_vkDevice, m_vkDeviceQueueFamilyIndices.GrapicQueueFamilyIndex(), 0, &m_vkDeviceGraphicQueue);
-    std::cout << "-->Vulkan Device Graphic Queue Family Index: " << m_vkDeviceQueueFamilyIndices.GrapicQueueFamilyIndex() << std::endl;
-    if (m_vkDeviceGraphicQueue == nullptr)
-    {
-        std::cout <<"-->Failed to Get Graphices Queue." << std::endl;
-        ok = false;
-        goto init_result;
-    }
-
-    vkGetDeviceQueue(m_vkDevice, m_vkDeviceQueueFamilyIndices.PresentQueueFamilyIndex(m_vkSurface), 0, &m_vkDevicePresentQueue);
-     std::cout << "-->Vulkan Device Present Queue Family Index: " <<m_vkDeviceQueueFamilyIndices.PresentQueueFamilyIndex(m_vkSurface) << std::endl;
-    if (m_vkDevicePresentQueue == nullptr)
-    {
-        std::cout <<"-->Failed to Get Graphices Queue." << std::endl;
-        ok = false;
-        goto init_result;
-    }
 
     // Create SwapChain ()
     swapChainPiexlFmt.format = VK_FORMAT_R8G8B8_UNORM;
     swapChainPiexlFmt.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     glfwGetFramebufferSize(m_WndHandle, reinterpret_cast<int*>(&swapChainPiexlDimension.width), reinterpret_cast<int*>(&swapChainPiexlDimension.height));
-    m_SwapChain.Init(phyDevice, m_vkDevice, m_vkSurface);
+    m_SwapChain.Init(m_Device.GetRawPhysicalDevice(), m_Device.GetRawDevice(), m_vkSurface);
     ok &= m_SwapChain.Create(swapChainPiexlFmt, VK_PRESENT_MODE_MAILBOX_KHR, 2, swapChainPiexlDimension);
     std::cout << "--> Create SwapChain: " << ok << std::endl;
     if (!ok)
@@ -176,17 +145,12 @@ void DemoApplication::SystemCleanUp()
 
     if (m_vkSurface != nullptr)
     {
-        vkDestroySurfaceKHR(m_vkInstance, m_vkSurface, nullptr);
+        vkDestroySurfaceKHR(m_Device.GetRawInstance(), m_vkSurface, nullptr);
         m_vkSurface = nullptr;
         std::cout << "-->SystemCleanUp destory Vulkan Surface." << std::endl;
     }
 
-    if (VulkanUtil::DestroyDevice(&m_vkDevice))
-    std::cout << "-->SystemCleanUp Destroy Vulkan Device." << std::endl;
-
-
-    if (VulkanUtil::DestoryInstance(&m_vkInstance, &m_vkDebugMsger))
-        std::cout << "-->SystemCleanUp Destroy Vulkan Instance." << std::endl;
+    m_Device.Release();
 
     if (m_WndHandle != nullptr)
     {

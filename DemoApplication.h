@@ -2,8 +2,9 @@
 #include<string>
 #include<vulkan\vulkan.h>
 #include<GLFW\glfw3.h>
-#include"QueueFamilyIndices.h"
+#include"Device.h"
 #include"SwapChain.h"
+#include"GraphicPipeline.h"
 
 
 class DemoApplication
@@ -15,16 +16,17 @@ private:
     std::string m_WndTitle;
     GLFWwindow* m_WndHandle;
 
-    // Vulkan Device
+    // Vulkan
 private:
+    Device m_Device;
     VkSurfaceKHR m_vkSurface;
-    VkInstance m_vkInstance;
-    VkDebugUtilsMessengerEXT m_vkDebugMsger;
-    VkDevice m_vkDevice;
-    QueueFamilyIndices m_vkDeviceQueueFamilyIndices;
-    VkQueue m_vkDeviceGraphicQueue;
-    VkQueue m_vkDevicePresentQueue;
     SwapChain m_SwapChain;
+
+
+    // Graphic Resources
+private:
+    GraphicPipeline m_TrianglePipeline;
+
 
 public:
     DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight);
