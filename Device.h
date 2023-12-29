@@ -22,7 +22,6 @@ public:
 
     enum JobOperation
     {
-        none,
         grapic,
         compute,
         transfer,
@@ -49,12 +48,17 @@ private:
     std::vector<HardwareFeature> m_EnablePhyDeviceFeatures{};
     VkDevice m_vkDevice;
     VkQueue m_DeviceGraphicQueue;
-    VkQueue m_DevicePresentQueue; 
+    VkQueue m_DeviceComputeQueue;
+    VkQueue m_DeviceTransferQueue;
+    VkQueue m_DevicePresentQueue;
     int m_PresentQueueFamilyIndex;
 
-    VkCommandPool m_DeviceCommandPools[QUEUE_FAMILY_MAX_COUNT * 2];
+    VkCommandPool m_DeviceQueueCommandPools[QUEUE_FAMILY_MAX_COUNT * 2];
+    VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
 public:
     Device();
+    Device(const Device& other) = delete;
+    Device& operator = (const Device& other) = delete;
     ~Device();
 
     void SetApiVersionHint(uint32_t prefferVersion) { m_ApiVersion = prefferVersion; }
@@ -80,14 +84,16 @@ public:
     VkPhysicalDevice GetRawPhysicalDevice() const { return m_vkPhyDevice; }
     VkDevice GetRawDevice() const { return m_vkDevice; }
 
-
+    CommandBuffer GetCommandBuffer(JobOperation op);
+    CommandBuffer GetTempraryCommandBuffer(JobOperation op);
 private:
     bool CreateInstance();
     bool FindPyhsicalDevice();
     bool CreateLogicalDevice();
     bool CreateCommandPools();
+    bool CreateCommandBuffers();
 
-    VkCommandPool GetCommandPool(JobOperation op, bool temprary);
+    int GetOperationQueueFamilyIndex(JobOperation op);
 
     void ApplyExtendionOrLayerHint(std::vector<std::string>& arr, const char* name, bool enabled);
     bool AllHardWareFeatureSupported() const;

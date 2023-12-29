@@ -2,12 +2,35 @@
 #include<iostream>
 
 
-CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool cmdPool)
+CommandBuffer::CommandBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer,  bool isTemprary)
 : m_vkDevice(device)
 , m_vkCmdPool(cmdPool)
-, m_vkCmdBuffer(VK_NULL_HANDLE)
+, m_vkCmdBuffer(cmdBuffer)
+, m_Temprary(isTemprary)
 {
 }
+
+
+CommandBuffer::CommandBuffer(CommandBuffer&& other)
+{
+    if(this == &other)
+        return;
+    
+    *this = std::move(other);
+}
+
+
+CommandBuffer& CommandBuffer::operator=(CommandBuffer&& other)
+{
+    if (this == &other)
+        return *this;
+    
+    std::swap(m_vkDevice, other.m_vkDevice);
+    std::swap(m_vkCmdPool, other.m_vkCmdPool);
+    std::swap(m_vkCmdBuffer, other.m_vkCmdBuffer);
+    std::swap(m_Temprary, other.m_Temprary);
+}
+
 
 CommandBuffer::~CommandBuffer()
 {
@@ -15,36 +38,9 @@ CommandBuffer::~CommandBuffer()
 }
 
 
-bool CommandBuffer::Create()
-{
-    if (m_vkDevice == VK_NULL_HANDLE || m_vkCmdPool == VK_NULL_HANDLE)
-        return false;
-    
-    if (IsCreate())
-        return;
-
-    VkCommandBufferAllocateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    createInfo.pNext = nullptr;
-    createInfo.commandPool = m_vkCmdPool;
-    createInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-
-    VkCommandBuffer cmdBuffer = VK_NULL_HANDLE;
-    VkResult result = vkAllocateCommandBuffers(m_vkDevice, &createInfo, &cmdBuffer);
-    if (result != VK_SUCCESS)
-    {
-        std::cout << "--> Create Command Buffer Failed! vulkan error: " << result << std::endl;
-        return false;
-    }
-    
-
-    return true;
-}
-
-
 void CommandBuffer::Begin() const
 {
-    if (!IsCreate())
+    if (!IsVaild())
         return;
 
     VkCommandBufferBeginInfo begInfo{};
@@ -58,11 +54,12 @@ void CommandBuffer::Begin() const
 
 void CommandBuffer::Release()
 {
-    if (!Create())
+    if (!IsVaild() || !m_Temprary)
         return;
 
     vkFreeCommandBuffers(m_vkDevice, m_vkCmdPool, 1, &m_vkCmdBuffer);
     m_vkCmdBuffer = VK_NULL_HANDLE;
     m_vkCmdPool = VK_NULL_HANDLE;
     m_vkDevice = VK_NULL_HANDLE;
+    m_Temprary = false;
 }
