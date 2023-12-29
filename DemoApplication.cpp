@@ -104,9 +104,7 @@ bool DemoApplication::SystemSetUp()
     m_Device.SetInstanceExtendsionHint(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true); // roung validation layer's debug msg to our callback fundtion
     m_Device.SetInstanceLayerHint(KHRONOS_STANDARD_VALIDATIONLAYER_NAME, true);
     m_Device.SetDebugEnableHint(true);
-    m_Device.SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
-    
-    
+     
     ok &= m_Device.Initialize();
     if (!ok)
         goto init_result;
@@ -117,8 +115,9 @@ bool DemoApplication::SystemSetUp()
     if (!ok)
         goto init_result;
 
-    // Pick Suitable Physical Device
-   
+    // Create vulkan logical Device
+    m_Device.SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
+    m_Device.SetPresentSurfaceHint(m_vkSurface);
     ok &= m_Device.Create();
     if (!ok)
         goto init_result;
