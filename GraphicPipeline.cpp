@@ -326,6 +326,7 @@ bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t 
         descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         descriptorSetLayoutCreateInfo.flags = 0;
         descriptorSetLayoutCreateInfo.pNext = nullptr;
+        descriptorSetLayoutCreateInfo.bindingCount = descriptorSetBindings.size();
         descriptorSetLayoutCreateInfo.pBindings = descriptorSetBindings.data();
         VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
         VkResult result = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, nullptr, &setLayout);
