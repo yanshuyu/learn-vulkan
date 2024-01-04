@@ -2,7 +2,7 @@
 #include<algorithm>
 #include<iostream>
 #include<numeric>
-#include"QueueFamilyIndices.h"
+#include"core\QueueFamilyIndices.h"
 
 
 

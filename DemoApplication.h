@@ -2,9 +2,9 @@
 #include<string>
 #include<vulkan\vulkan.h>
 #include<GLFW\glfw3.h>
-#include"Device.h"
-#include"SwapChain.h"
-#include"GraphicPipeline.h"
+#include"core/Device.h"
+#include"core/SwapChain.h"
+#include"core/GraphicPipeline.h"
 
 
 class DemoApplication

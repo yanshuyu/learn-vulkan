@@ -1,4 +1,4 @@
-#include"QueueFamilyIndices.h"	
+#include"core\QueueFamilyIndices.h"	
 #include<vector>
 #include<algorithm>
 

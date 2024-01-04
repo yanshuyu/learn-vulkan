@@ -3,8 +3,8 @@
 #include<string>
 #include<vector>
 #include<utility>
-#include"QueueFamilyIndices.h"
-#include"CommandBuffer.h"
+#include"core\QueueFamilyIndices.h"
+#include"core\CommandBuffer.h"
 
 class Device
 {
