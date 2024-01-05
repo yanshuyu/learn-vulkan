@@ -1,65 +1,30 @@
-#include "DemoApplication.h"
-#include<iostream>
+#include"Application.h"
+#include<GLFW\glfw3.h>
 
 
-#define KHRONOS_STANDARD_VALIDATIONLAYER_NAME "VK_LAYER_KHRONOS_validation"
 
-DemoApplication::DemoApplication(const std::string& wndTitle, int wndWidth, int wndHeight)
-: m_WndTitle(wndTitle),
-m_WndWidth(wndWidth),
-m_WndHeight(wndHeight),
-m_WndHandle(nullptr),
-m_vkSurface(nullptr),
-m_SwapChain()
+static void GlfwErrorCallBack(int errCode, const char* errMsg)
+{
+    LOGE("GLFW Error: {}  Msg: {}", errCode, errMsg);
+}
+
+Application::Application(const char* wndTitle, int wndWidth, int wndHeight)
+: m_WndTitle(wndTitle)
+, m_WndWidth(wndWidth)
+, m_WndHeight(wndHeight)
 {
 
 }
 
-DemoApplication::~DemoApplication()
-{
-
-}
-
-bool DemoApplication::Init()
-{
-    std::cout << "Application Boots Up." << std::endl;
-    bool ok = SystemSetUp();
-    if (ok)
-        ok &= Start();
-    
-    if (!ok)
-        ShutDown();
-
-    return ok;
-}
 
 
-void DemoApplication::Run()
-{
-    while (!glfwWindowShouldClose(m_WndHandle))
-    {
-
-
-        glfwPollEvents();
-    }
-}
-
-
-void DemoApplication::ShutDown()
-{
-    Release();
-    SystemCleanUp();
-    std::cout << "Application Shut Down." << std::endl;
-}
-
-
-bool DemoApplication::SystemSetUp()
+bool Application::RenderingSetUp()
 {
     bool ok = true;
     VkSurfaceFormatKHR swapChainPiexlFmt{};
     VkExtent2D swapChainPiexlDimension{};
 
-    std::cout << "-->SystemSetUp..." << std::endl;
+    LOGI("-->Rendering SetUp...");
 
     // we load vulkan statically,  canonical desktop loader library exports all Vulkan core and Khronos extension functions, allowing them to be called directly.
     // so we don't need call this function
@@ -73,7 +38,7 @@ bool DemoApplication::SystemSetUp()
     // Init Window
     ////////////////////////////////////////////////////////////
     ok &= static_cast<bool>(glfwInit());
-    std::cout << "-->glfw Init: " << ok << std::endl;
+    LOGI("-->glfw Init: {}", ok);
     if (!ok)
         goto init_result;
     
@@ -86,7 +51,7 @@ bool DemoApplication::SystemSetUp()
 
     m_WndHandle = glfwCreateWindow(m_WndWidth, m_WndHeight, m_WndTitle.data(), nullptr, nullptr);
     ok &= (m_WndHandle != nullptr);
-    std::cout << "-->glfw Create Window: " << ok << std::endl;
+    LOGI("-->glfw Create Window: {}", ok);
     if (!ok)
         goto init_result;
 
@@ -98,83 +63,96 @@ bool DemoApplication::SystemSetUp()
     const char** glfwRequireInstanceExtensionNames = glfwGetRequiredInstanceExtensions(&glfwRequireInstanceExtensionCnt);
     for (size_t i = 0; i < glfwRequireInstanceExtensionCnt; i++)
     {
-        m_Device.SetInstanceExtendsionHint(*glfwRequireInstanceExtensionNames, true);
+        m_VukanInstance.SetInstanceExtendsionHint(*glfwRequireInstanceExtensionNames, true);
         glfwRequireInstanceExtensionNames++;
     }
-    m_Device.SetInstanceExtendsionHint(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true); // roung validation layer's debug msg to our callback fundtion
-    m_Device.SetInstanceLayerHint(KHRONOS_STANDARD_VALIDATIONLAYER_NAME, true);
-    m_Device.SetDebugEnableHint(true);
+    m_VukanInstance.SetDebugEnableHint(true);
      
-    ok &= m_Device.Initialize();
+    ok &= m_VukanInstance.Initailize();
+    LOGI("--> Vulkan Instance Create: {}", ok);
     if (!ok)
         goto init_result;
+
+    m_VukanInstance.SetActive();
     
     // Create vulkan platform specific window surface
-    ok &= glfwCreateWindowSurface(m_Device.GetRawInstance(), m_WndHandle, nullptr, &m_vkSurface) == VK_SUCCESS;
-    std::cout << "-->Create Vulkan Surface: " << ok << std::endl;
+    ok &= glfwCreateWindowSurface(VulkanInstance::sActive->GetHandle(), m_WndHandle, nullptr, &m_vkSurface) == VK_SUCCESS;
+    LOGI("-->Create Vulkan Surface: {}", ok);
+    if (!ok)
+        goto init_result;
+
+    // Find a physical gpu which support expected operation
+    VkPhysicalDevice suitableGpu = VulkanInstance::sActive->RequestPhysicalDevice(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, m_vkSurface);
+    ok &= VKHANDLE_IS_NOT_NULL(suitableGpu);
+    LOGI("--> Find Suitable Gpu: {}", ok);
     if (!ok)
         goto init_result;
 
     // Create vulkan logical Device
     m_Device.SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
-    m_Device.SetPresentSurfaceHint(m_vkSurface);
-    ok &= m_Device.Create();
+    ok &= m_Device.Initailze(suitableGpu, m_vkSurface);
+    LOGI("--> Create Vulkan Device: {}", ok);
     if (!ok)
         goto init_result;
 
+    m_Device.SetActive();
+
     // Create SwapChain ()
-    swapChainPiexlFmt.format = VK_FORMAT_R8G8B8_UNORM;
+    swapChainPiexlFmt.format = VK_FORMAT_B8G8R8A8_UNORM;
     swapChainPiexlFmt.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     glfwGetFramebufferSize(m_WndHandle, reinterpret_cast<int*>(&swapChainPiexlDimension.width), reinterpret_cast<int*>(&swapChainPiexlDimension.height));
-    m_SwapChain.Init(m_Device.GetRawPhysicalDevice(), m_Device.GetRawDevice(), m_vkSurface);
+    m_SwapChain.Init(Device::sActive->GetHardwardHandle(), Device::sActive->GetHandle(), m_vkSurface);
     ok &= m_SwapChain.Create(swapChainPiexlFmt, VK_PRESENT_MODE_MAILBOX_KHR, 2, swapChainPiexlDimension);
-    std::cout << "--> Create SwapChain: " << ok << std::endl;
+    LOGI("--> Create SwapChain: {}",ok);
     if (!ok)
         goto init_result;
 
 init_result:
-    std::cout << "-->SystemSetUp Finish " << ok << std::endl;  
+    LOGI("-->Rendering SetUp Finish:  {}", ok);  
     return ok;
 }
 
-void DemoApplication::SystemCleanUp()
+
+
+void Application::RenderingCleanUp()
 {
+    LOGI("--> Rendering CleanUp...")
+    m_Device.WaitIdle();
 
     m_SwapChain.Release();
 
     if (m_vkSurface != nullptr)
     {
-        vkDestroySurfaceKHR(m_Device.GetRawInstance(), m_vkSurface, nullptr);
+        vkDestroySurfaceKHR(m_VukanInstance.GetHandle(), m_vkSurface, nullptr);
         m_vkSurface = nullptr;
-        std::cout << "-->SystemCleanUp destory Vulkan Surface." << std::endl;
+        LOGI("--> destory Vulkan Surface." );
     }
 
     m_Device.Release();
+    LOGI("--> destory Vulkan Device." );
+
+    m_VukanInstance.Release();
+    LOGI("--> destory Vulkan Instance." );
 
     if (m_WndHandle != nullptr)
     {
         glfwDestroyWindow(m_WndHandle);
         m_WndHandle = nullptr;
-        std::cout << "-->SystemCleanUp destory window." << std::endl;
+        LOGI("--> destory GLFW Window." );
     }
 
     glfwTerminate();
+    
 }
 
-bool DemoApplication::Start()
+
+
+void Application::Run()
 {
-    return true;
+    while (!glfwWindowShouldClose(m_WndHandle))
+    {
+        ApplicationUpdate();
+        Render();
+        glfwPollEvents();
+    }
 }
-
-void DemoApplication::Release()
-{
-
-}
-
-
-void DemoApplication::GlfwErrorCallBack(int errCode, const char* errMsg)
-{
-    std::cerr << "GLFW Error Code: " << errCode << std::endl << "Error Msg: " << errMsg << std::endl;
-}
-
-

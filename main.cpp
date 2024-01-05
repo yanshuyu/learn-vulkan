@@ -1,24 +1,33 @@
-#include "DemoApplication.h"
-#include<iostream>
+#include<memory>
+#include"core\CoreUtils.h"
+#include "Application.h"
+
+
+
+std::unique_ptr<Application> CreateDemo()
+{
+    return std::move(std::unique_ptr<Application>(new Application("Vukan", 800, 600)));
+}
+
 
 int main(int, char**)
 {
-    DemoApplication demo{"Vulkan", 800, 600};
+    auto app = CreateDemo();
     try
     {
-        demo.Init();
+        app->Init();
         
-        demo.Run();
+        app->Run();
 
     }
     catch(const std::exception& e)
     {
-        std::cerr << "-->Application get Exception: \n" << e.what() << '\n'; 
+        LOGE("Demo Application Exception: {}", e.what());
+        app->ShutDown();
         exit(EXIT_FAILURE);
     }
     
-    demo.ShutDown();
-
+    app->ShutDown();
 
     exit(EXIT_SUCCESS);
 }

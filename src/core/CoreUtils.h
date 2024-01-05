@@ -28,6 +28,26 @@ ClassName operator = (ClassName&&) = delete;
 #define LOGD(...) spdlog::debug(__VA_ARGS__);
 
 // Types
+
+enum HardwareFeature
+{
+    none,
+    geometryShader,
+    tessellationShader,
+    samplerAnisotropy,
+    textureCompressionETC2,
+    // will add more
+};
+
+enum DeviceJobOperation
+{
+    grapic,
+    compute,
+    transfer,
+    present,
+};
+
+
 struct AttachmentDesc
 {
     VkFormat format{VK_FORMAT_UNDEFINED};
@@ -94,3 +114,6 @@ VkImageLayout vkutils_get_render_pass_attachment_best_input_layout(VkFormat fmt)
 
 
 VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt);
+
+
+void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& arr, const char* name, bool enabled);

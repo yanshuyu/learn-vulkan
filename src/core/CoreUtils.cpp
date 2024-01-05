@@ -25,3 +25,16 @@ VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt
 
     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 }
+
+void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string> &arr, const char *name, bool enabled)
+{
+    auto pos = std::find(arr.begin(), arr.end(), name);
+    if (!enabled && pos != arr.end())
+    {
+        arr.erase(pos);
+    }
+    else if (enabled && pos == arr.end())
+    {
+        arr.push_back(name);
+    }
+}

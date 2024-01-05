@@ -258,7 +258,7 @@ bool RenderPass::Create(bool force)
     VkResult result = vkCreateRenderPass(m_vkDevice, &createInfo, nullptr, &createdRenderPass);
     if (result != VK_SUCCESS)
     {
-        LOGE("--> Create Render Pass Error: %d", result);
+        LOGE("--> Create Render Pass Error: {}", result);
         return false;
     }
 
