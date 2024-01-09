@@ -6,6 +6,7 @@
 #include<set>
 #include"core\CoreUtils.h"
 #include"core\CommandBuffer.h"
+#include"core\Buffer.h"
 
 Device* Device::sActive = nullptr;
 
@@ -36,6 +37,7 @@ Device::Device()
     LOGI("-->Create Device: {}", ok);
     if (ok)
     {
+        QueryDeviceMemoryProperties();
         vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.GrapicQueueFamilyIndex(), 0, &m_DeviceGraphicQueue);
         vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.TransferQueueFamilyIndex(), 0, &m_DeviceTransferQueue);
         if (m_DeviceQueueFamilyIndices.ComputeQueueFamilyIndex() != -1)
@@ -326,6 +328,11 @@ bool Device::CreateCommandBuffers()
     
 }
 
+void Device::QueryDeviceMemoryProperties()
+{
+    vkGetPhysicalDeviceMemoryProperties(m_vkPhyDevice, &m_PhyDeviceMemProps);
+}
+
 bool Device::AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const
 {
     VkPhysicalDeviceFeatures phyDevicefeatures;
@@ -356,6 +363,83 @@ bool Device::AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const
             break;
         }
     }
+
+    return true;
+}
+
+bool Device::AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag, VkDeviceSize size, VkDeviceMemory* pAllocatedMem)
+{
+    if (!IsValid())
+        return false;
+
+    if (m_PhyDeviceMemProps.memoryHeapCount == 0 || m_PhyDeviceMemProps.memoryTypeCount == 0)
+        QueryDeviceMemoryProperties();
+
+    size_t memTypeIdx = -1;
+    for (size_t i = 0; i < m_PhyDeviceMemProps.memoryTypeCount; i++)
+    {
+        if (memTypeBits & (1 << i)  > 0 // avaliable memory type index
+            && (m_PhyDeviceMemProps.memoryTypes[i].propertyFlags & memPropFlag) == memPropFlag) // avaliable memory properties
+        {
+            memTypeIdx = i;
+            break;
+        } 
+    }
+
+    if (memTypeIdx == -1)
+        return false;
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;
+    allocInfo.memoryTypeIndex = memTypeIdx;
+    allocInfo.allocationSize = size;
+
+    VkResult result = vkAllocateMemory(m_vkDevice, &allocInfo, nullptr, pAllocatedMem);
+    if (result != VK_SUCCESS)
+        LOGE("Vulkan Alloc Memory error: {}", result);
+    
+    return result == VK_SUCCESS;
+}
+
+void Device::FreeMemory(VkDeviceMemory mem)
+{
+    if (!IsValid())
+        return;
+
+    vkFreeMemory(m_vkDevice, mem, nullptr);
+}
+
+
+Buffer* Device::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp)
+{
+    if (!IsValid())
+    {
+        LOGW("Try to create Buffer with invalid Device({})!", (void *)this);
+        return nullptr;
+    }
+
+    Buffer *newBuffer = new Buffer{};
+    if (!newBuffer->Initailize(this, size, usage, memProp))
+    {
+        delete newBuffer;
+        return nullptr;
+    }
+
+    _BuffersRes.push_back(newBuffer);
+
+    return newBuffer;
+}
+
+bool Device::DestroyBuffer(Buffer* pBuffer)
+{
+    auto pos = std::find(_BuffersRes.begin(), _BuffersRes.end(), pBuffer);
+    if (pos == _BuffersRes.end())
+        return false;
+    
+    _BuffersRes.erase(pos);
+    pBuffer->Release();
+    delete pBuffer;
 
     return true;
 }

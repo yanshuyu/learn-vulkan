@@ -17,6 +17,7 @@ ClassName operator = (ClassName&&) = delete;
 
 #define VKHANDLE_IS_NULL(vkHandle) (vkHandle == VK_NULL_HANDLE)
 #define VKHANDLE_IS_NOT_NULL(vkHandle) (vkHandle != VK_NULL_HANDLE)
+#define VKHANDLE_SET_NULL(vkHandle) (vkHandle = VK_NULL_HANDLE)
 
 // loging
 #define ROOT_PATH_SIZE 64
