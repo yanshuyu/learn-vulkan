@@ -9,6 +9,7 @@
 
 class CommandBuffer;
 class Buffer;
+class Fence;
 
 
 class Device
@@ -33,7 +34,7 @@ private:
 
 private:
     std::vector<Buffer*> _BuffersRes{};
-
+    std::vector<Fence*> _Fences;
 
 public:
     static Device* sActive;
@@ -68,6 +69,9 @@ public:
     // Resource Create & Destroy
     Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
     bool DestroyBuffer(Buffer* pBuffer);
+
+    Fence* CreateFence(bool signaled);
+    bool DestroyFence(Fence* pFence);
     
 private:
     bool CreateLogicalDevice(VkPhysicalDevice phyDevice);

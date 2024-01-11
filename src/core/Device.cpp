@@ -7,6 +7,7 @@
 #include"core\CoreUtils.h"
 #include"core\CommandBuffer.h"
 #include"core\Buffer.h"
+#include"core\Fence.h"
 
 Device* Device::sActive = nullptr;
 
@@ -440,6 +441,31 @@ bool Device::DestroyBuffer(Buffer* pBuffer)
     _BuffersRes.erase(pos);
     pBuffer->Release();
     delete pBuffer;
+
+    return true;
+}
+
+Fence* Device::CreateFence(bool signaled)
+{
+    if (!IsValid())
+    {
+        LOGW("Try to create Fence with invalid Device({})!", (void *)this);
+        return nullptr;
+    }
+
+    Fence* pFence = new Fence(this, signaled);
+    _Fences.push_back(pFence);
+    return pFence;
+}
+
+bool Device::DestroyFence(Fence* pFence)
+{
+    auto pos = std::find(_Fences.begin(), _Fences.end(), pFence);
+    if (pos == _Fences.end())
+        return false;
+    
+    _Fences.erase(pos);
+    delete pFence;
 
     return true;
 }
