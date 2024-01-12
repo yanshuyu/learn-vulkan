@@ -15,9 +15,10 @@ Device::Device()
 {
     for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT; i++)
     {
-        m_DeviceQueueCommandPools[i*2] = VK_NULL_HANDLE;
-        m_DeviceQueueCommandPools[i*2+1] = VK_NULL_HANDLE;
+        m_DeviceQueueCmdPools[i*2] = VK_NULL_HANDLE;
+        m_DeviceQueueCmdPools[i*2+1] = VK_NULL_HANDLE;
         m_DeviceQueueCmdBuffers[i] = VK_NULL_HANDLE;
+        m_DeviceQueues[i] = VK_NULL_HANDLE;
     }
     
 }
@@ -39,15 +40,20 @@ Device::Device()
     if (ok)
     {
         QueryDeviceMemoryProperties();
-        vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.GrapicQueueFamilyIndex(), 0, &m_DeviceGraphicQueue);
-        vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.TransferQueueFamilyIndex(), 0, &m_DeviceTransferQueue);
-        if (m_DeviceQueueFamilyIndices.ComputeQueueFamilyIndex() != -1)
-            vkGetDeviceQueue(m_vkDevice, m_DeviceQueueFamilyIndices.ComputeQueueFamilyIndex(), 0, &m_DeviceComputeQueue);
-        if (presentSurface != VK_NULL_HANDLE)
-        {   
-            m_PresentQueueFamilyIndex = m_DeviceQueueFamilyIndices.PresentQueueFamilyIndex(presentSurface);
-            vkGetDeviceQueue(m_vkDevice, m_PresentQueueFamilyIndex, 0, &m_DevicePresentQueue);
+        for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT; i++)
+        {
+            int queueFamIdx = m_DeviceQueueFamilyIndices.QueueFamilyIndexAtIndex(i);
+            if (queueFamIdx != -1)
+            {
+                vkGetDeviceQueue(m_vkDevice, queueFamIdx, 0, &m_DeviceQueues[i]);
+                if (m_DeviceQueuesPresentIdx == -1 && m_DeviceQueueFamilyIndices.PresentQueueFamilyIndex(presentSurface) == queueFamIdx)
+                {   
+                    m_PresentSurface = presentSurface;
+                    m_DeviceQueuesPresentIdx = i;
+                }; 
+            }
         }
+        
         ok &= CreateCommandPools();
         ok &= CreateCommandBuffers();
     }
@@ -55,14 +61,15 @@ Device::Device()
     return ok;
  }
 
+
 void Device::Release()
 {
     // destory command pool will destroy command buffers allocate from it
     std::set<VkCommandPool> compactCmdPools;
     for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT*2; i++)
     {
-        if (m_DeviceQueueCommandPools[i] != VK_NULL_HANDLE)
-            compactCmdPools.insert(m_DeviceQueueCommandPools[i]);
+        if (m_DeviceQueueCmdPools[i] != VK_NULL_HANDLE)
+            compactCmdPools.insert(m_DeviceQueueCmdPools[i]);
     }
     for (auto &&pool : compactCmdPools)
     {
@@ -73,13 +80,16 @@ void Device::Release()
     if (m_vkDevice != VK_NULL_HANDLE)
     {
         vkDeviceWaitIdle(m_vkDevice); // ensure all job has finish before destroy any device
-        vkDestroyDevice(m_vkDevice, nullptr);
+        vkDestroyDevice(m_vkDevice, nullptr); // destroy deivce will automatically destroy it's created queues
         m_vkDevice = VK_NULL_HANDLE;
-        m_DeviceGraphicQueue = VK_NULL_HANDLE; // destroy deivce will automatically destroy it's created queues
-        m_DevicePresentQueue = VK_NULL_HANDLE;
-        m_DeviceComputeQueue = VK_NULL_HANDLE;
-        m_DeviceTransferQueue = VK_NULL_HANDLE;
-        m_PresentQueueFamilyIndex = -1;
+        for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT; i++)
+        {
+            m_DeviceQueueCmdPools[i*2] = VK_NULL_HANDLE;
+            m_DeviceQueueCmdPools[i*2+1] = VK_NULL_HANDLE;
+            m_DeviceQueueCmdBuffers[i] = VK_NULL_HANDLE;
+            m_DeviceQueues[i] = VK_NULL_HANDLE;
+        }
+        m_DeviceQueuesPresentIdx = -1;
 
         if (sActive == this)
             sActive = nullptr;
@@ -96,27 +106,29 @@ void Device::WaitIdle() const
         vkDeviceWaitIdle(m_vkDevice);
 }
 
-CommandBuffer Device::GetCommandBuffer(DeviceJobOperation op)
+CommandBuffer* Device::GetCommandBuffer(DeviceJobOperation op)
 {
     int idx = GetOperationQueueFamilyIndex(op);
     if (idx == -1)
-        return std::move(CommandBuffer(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, true));
+        return nullptr;
     
-    return std::move(CommandBuffer(m_vkDevice, m_DeviceQueueCommandPools[idx * 2], m_DeviceQueueCmdBuffers[idx], false));
+    CommandBuffer* pCmdBuf = _CmdBufPool.Get();
+    pCmdBuf->SetUp(this, m_DeviceQueueCmdPools[idx * 2], m_DeviceQueues[idx], m_DeviceQueueCmdBuffers[idx], false);
+    return pCmdBuf;
 }
 
 
-CommandBuffer Device::GetTempraryCommandBuffer(DeviceJobOperation op)
+CommandBuffer* Device::GetTempraryCommandBuffer(DeviceJobOperation op)
 {
     int idx = GetOperationQueueFamilyIndex(op);
     if (idx == -1)
-        return std::move(CommandBuffer(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, true));
+        return nullptr;
 
     // alloc one temprary command buffer
     VkCommandBufferAllocateInfo cmdBufAllocInfo{};
     cmdBufAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     cmdBufAllocInfo.pNext = nullptr;
-    cmdBufAllocInfo.commandPool = m_DeviceQueueCommandPools[idx * 2 + 1];
+    cmdBufAllocInfo.commandPool = m_DeviceQueueCmdPools[idx * 2 + 1];
     cmdBufAllocInfo.commandBufferCount = 1;
     cmdBufAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 
@@ -124,18 +136,69 @@ CommandBuffer Device::GetTempraryCommandBuffer(DeviceJobOperation op)
     VkResult result = vkAllocateCommandBuffers(m_vkDevice, &cmdBufAllocInfo, &allocedCmdBuffer);
     if (result != VK_SUCCESS)
     {
-        std::cout << "--> Allocate Temprary Command Buffer Failed! vulkan error: " << result << std::endl;
-        return std::move(CommandBuffer(VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE, true));
+        LOGE("Create temp command buffer error: {}", result);
+        return nullptr;
     }
 
-    return std::move(CommandBuffer(m_vkDevice, m_DeviceQueueCommandPools[idx * 2 + 1], allocedCmdBuffer, true));
+    CommandBuffer* pCmdBuf = _CmdBufPool.Get();
+    pCmdBuf->SetUp(this, m_DeviceQueueCmdPools[idx * 2 + 1], m_DeviceQueues[idx], allocedCmdBuffer, true);
+    return pCmdBuf;
 }
+
+
+ bool Device::ReleaseCommandBufferImp(CommandBuffer* pCmdBuf)
+ {
+    if (pCmdBuf == nullptr)
+        return false;
+    
+    if (pCmdBuf->IsVaild())
+        return false;
+
+    if (pCmdBuf->GetDevice() != this)
+    {
+        LOGW("Try to release a command buffer({}) create by device({}) with diffrence device({})!", (void*)pCmdBuf, (void*)pCmdBuf->GetDevice(), (void*)this);
+        return false;
+    }
+
+    if (pCmdBuf->IsTemprary())
+    {
+        VkCommandBuffer cmdbuf = pCmdBuf->GetHandle();
+        vkFreeCommandBuffers(m_vkDevice, pCmdBuf->GetPoolHandle(), 1, &cmdbuf);
+    }
+
+    pCmdBuf->ClenUp();
+    
+    return true;
+ }
+
+
+bool Device::ReleaseCommandBuffer(CommandBuffer* pCmdBuf)
+{
+    if (ReleaseCommandBufferImp(pCmdBuf))
+    {    
+        _CmdBufPool.Return(pCmdBuf);
+        return true;
+    }
+    
+    return false;
+}
+
+bool Device::DestroyCommandBuffer(CommandBuffer* pCmdBuf)
+{
+    if (ReleaseCommandBufferImp(pCmdBuf))
+    {
+        _CmdBufPool.Release(pCmdBuf);
+        return true;
+    }
+
+    return false;
+}
+
 
 void Device::ResetAllHints()
 {
     m_DeviceExtendsions.clear();
     m_EnablePhyDeviceFeatures.clear();
-    m_PresentQueueFamilyIndex = -1;
 }
 
 void Device::SetDeviceFeatureHint(HardwareFeature feature, bool enabled)
@@ -265,7 +328,7 @@ bool Device::CreateCommandPools()
                     std::cout << "--> Create Command long live Pool For Queue Family Index: " << curQueueFamilyIndex << ", vulkan error: " << result << std::endl;
                     return false;
                 }
-                m_DeviceQueueCommandPools[i*2] = longLivePool;
+                m_DeviceQueueCmdPools[i*2] = longLivePool;
                 
                 poolCreateInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
                 VkCommandPool shotTimePool = VK_NULL_HANDLE;
@@ -275,15 +338,15 @@ bool Device::CreateCommandPools()
                     std::cout << "--> Create Command shot time Pool For Queue Family Index: " << curQueueFamilyIndex << ", vulkan error: " << result << std::endl;
                     return false;
                 }
-                m_DeviceQueueCommandPools[i*2+1] = shotTimePool;
+                m_DeviceQueueCmdPools[i*2+1] = shotTimePool;
 
                 createdQueueFamilyCommandPools[curQueueFamilyIndex] = std::make_pair(longLivePool, shotTimePool);
 
             }
             else 
             {
-                m_DeviceQueueCommandPools[i*2] = createdQueueFamilyCommandPools[curQueueFamilyIndex].first;
-                m_DeviceQueueCommandPools[i*2+1] = createdQueueFamilyCommandPools[curQueueFamilyIndex].second;   
+                m_DeviceQueueCmdPools[i*2] = createdQueueFamilyCommandPools[curQueueFamilyIndex].first;
+                m_DeviceQueueCmdPools[i*2+1] = createdQueueFamilyCommandPools[curQueueFamilyIndex].second;   
             }
         }
     }
@@ -308,7 +371,7 @@ bool Device::CreateCommandBuffers()
                 cmdBufferAllocInfo.pNext = nullptr;
                 cmdBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
                 cmdBufferAllocInfo.commandBufferCount = 1;
-                cmdBufferAllocInfo.commandPool = m_DeviceQueueCommandPools[i * 2];
+                cmdBufferAllocInfo.commandPool = m_DeviceQueueCmdPools[i * 2];
                 VkCommandBuffer createdCmdBuffer = VK_NULL_HANDLE;
                 VkResult result = vkAllocateCommandBuffers(m_vkDevice, &cmdBufferAllocInfo, &createdCmdBuffer);
                 if (result != VK_SUCCESS)
@@ -512,8 +575,7 @@ VkPhysicalDeviceFeatures Device::HardwareFeaturesToVkPhysicalDeviceFeatures() co
     case transfer:
         idx = QUEUE_FAMILY_TRANSFER_INDEX;
     case present:
-        if (m_DevicePresentQueue != VK_NULL_HANDLE)
-            idx = m_PresentQueueFamilyIndex;
+        idx = m_DeviceQueuesPresentIdx;
         break;
 
     default:

@@ -1,30 +1,50 @@
 #pragma once
 #include<vulkan\vulkan.h>
+#include"core\CoreUtils.h"
 
+class Device;
 
 class CommandBuffer
 {
-private:
-    VkDevice m_vkDevice;
-    VkCommandPool m_vkCmdPool;
-    VkCommandBuffer m_vkCmdBuffer;
-    bool m_Temprary;
+    friend class Device;
 public:
-    CommandBuffer() = delete;
-    CommandBuffer(VkDevice device, VkCommandPool cmdPool, VkCommandBuffer cmdBuffer, bool isTemprary);
-    CommandBuffer(const CommandBuffer& other) = delete;
-    CommandBuffer& operator = (const CommandBuffer& other) = delete;
-    CommandBuffer(CommandBuffer&& other);
-    CommandBuffer& operator = (CommandBuffer&& other);
+    enum State 
+    {
+        Invalid,
+        Initial,
+        Recording,
+        Executable,
+    };
+
+private:
+    Device* _pDevice {nullptr};
+    VkCommandPool _vkCmdPool{VK_NULL_HANDLE};
+    VkQueue _vkQueue{VK_NULL_HANDLE};
+    VkCommandBuffer _vkCmdBuffer{VK_NULL_HANDLE};
+    bool _temprary{true};
+    State _state { State::Invalid};
+
+    void SetUp(Device* pDevice, VkCommandPool cmdPool, VkQueue exeQueue, VkCommandBuffer cmdBuf, bool isTemp);
+    void ClenUp();
+
+public:
+    CommandBuffer(){};
     ~CommandBuffer();
 
-    bool IsTemprary() const { return m_Temprary; }
-    bool IsVaild() const { return m_vkCmdBuffer != VK_NULL_HANDLE; }
-    void Begin() const;
-    void End() const { if(IsVaild()) vkEndCommandBuffer(m_vkCmdBuffer); }
-    void Reset() const { if(IsVaild() && !m_Temprary) vkResetCommandBuffer(m_vkCmdBuffer, 0); }
-    void Release();
+    NONE_COPYABLE_NONE_MOVEABLE(CommandBuffer)
 
+    Device* GetDevice() const { return _pDevice; }
+    VkCommandPool GetPoolHandle() const { return _vkCmdPool; }
+    VkCommandBuffer GetHandle() const { return _vkCmdBuffer; }
+    VkQueue GetQueueHandle() const { return _vkQueue; }
+    
+    bool IsTemprary() const { return _temprary; }
+    bool IsVaild() const;
+    bool CanExecute() const { return IsVaild() && !_temprary && _state == State::Executable; }
+    bool Begin();
+    bool End();
+    bool Execute();
+    bool Reset();
 };
 
 

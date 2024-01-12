@@ -5,6 +5,7 @@
 #include<utility>
 #include"core\QueueFamilyIndices.h"
 #include"core\CoreUtils.h"
+#include"rendering\ObjectPool.h"
 
 
 class CommandBuffer;
@@ -23,18 +24,19 @@ private:
     std::vector<HardwareFeature> m_EnablePhyDeviceFeatures{};
 
     VkDevice m_vkDevice{VK_NULL_HANDLE};
-    VkQueue m_DeviceGraphicQueue{VK_NULL_HANDLE};
-    VkQueue m_DeviceComputeQueue{VK_NULL_HANDLE};
-    VkQueue m_DeviceTransferQueue{VK_NULL_HANDLE};
-    VkQueue m_DevicePresentQueue{VK_NULL_HANDLE};
-    int m_PresentQueueFamilyIndex{-1};
+    VkQueue m_DeviceQueues[QUEUE_FAMILY_MAX_COUNT] {VK_NULL_HANDLE}; 
+    VkSurfaceKHR m_PresentSurface {VK_NULL_HANDLE};
+    int m_DeviceQueuesPresentIdx{-1};
+    
 
-    VkCommandPool m_DeviceQueueCommandPools[QUEUE_FAMILY_MAX_COUNT * 2];
+    VkCommandPool m_DeviceQueueCmdPools[QUEUE_FAMILY_MAX_COUNT * 2];
     VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
 
 private:
     std::vector<Buffer*> _BuffersRes{};
-    std::vector<Fence*> _Fences;
+    std::vector<Fence*> _Fences{};
+
+    ObjectPool<CommandBuffer> _CmdBufPool;
 
 public:
     static Device* sActive;
@@ -59,8 +61,20 @@ public:
     VkDevice GetHandle() const { return m_vkDevice; }
     VkPhysicalDevice GetHardwardHandle() const { return m_vkPhyDevice; }
 
-    CommandBuffer GetCommandBuffer(DeviceJobOperation op);
-    CommandBuffer GetTempraryCommandBuffer(DeviceJobOperation op);
+    bool SupportGrapic() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]); }
+    bool SupportCompute() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_COMPUTE_INDEX]); }
+    bool SupportTransfer() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]); }
+    bool SupportPrenset(VkSurfaceKHR surface) const { return surface == m_PresentSurface && m_DeviceQueuesPresentIdx != -1; }
+
+    VkQueue GetGrapicQueue() const { return m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]; }
+    VkQueue GetcomputeQueue() const { return m_DeviceQueues[QUEUE_FAMILY_COMPUTE_INDEX]; }
+    VkQueue GetTransferQueue() const { return m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]; }
+    VkQueue GetPresentQueue() const { return m_DeviceQueuesPresentIdx == -1 ? VK_NULL_HANDLE : m_DeviceQueues[m_DeviceQueuesPresentIdx]; }
+
+    CommandBuffer* GetCommandBuffer(DeviceJobOperation op);
+    CommandBuffer* GetTempraryCommandBuffer(DeviceJobOperation op);
+    bool ReleaseCommandBuffer(CommandBuffer* pCmdBuf);
+    bool DestroyCommandBuffer(CommandBuffer* pCmdBuf);
 
     // Memory Alloc & Free
     bool AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag, VkDeviceSize size, VkDeviceMemory* pAllocatedMem);
@@ -79,7 +93,7 @@ private:
     bool CreateCommandBuffers();
     void QueryDeviceMemoryProperties();
     int GetOperationQueueFamilyIndex(DeviceJobOperation op);
- 
+    bool ReleaseCommandBufferImp(CommandBuffer* pCmdBuf);
 
 
     bool AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const;
