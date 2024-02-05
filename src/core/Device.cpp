@@ -39,7 +39,6 @@ Device::Device()
     LOGI("-->Create Device: {}", ok);
     if (ok)
     {
-        QueryDeviceMemoryProperties();
         for (size_t i = 0; i < QUEUE_FAMILY_MAX_COUNT; i++)
         {
             int queueFamIdx = m_DeviceQueueFamilyIndices.QueueFamilyIndexAtIndex(i);
@@ -53,6 +52,9 @@ Device::Device()
                 }; 
             }
         }
+        
+        QueryDeviceMemoryProperties();
+        QueryDeviceSurfaceProperties();
         
         ok &= CreateCommandPools();
         ok &= CreateCommandBuffers();
@@ -395,6 +397,19 @@ bool Device::CreateCommandBuffers()
 void Device::QueryDeviceMemoryProperties()
 {
     vkGetPhysicalDeviceMemoryProperties(m_vkPhyDevice, &m_PhyDeviceMemProps);
+}
+
+void Device::QueryDeviceSurfaceProperties()
+{ 
+    uint32_t supportedFmtCnt = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_vkPhyDevice, m_PresentSurface, &supportedFmtCnt, nullptr);
+    m_SupportedPresentSurfaceFormats.resize(supportedFmtCnt);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_vkPhyDevice, m_PresentSurface, &supportedFmtCnt, m_SupportedPresentSurfaceFormats.data());
+
+    uint32_t supportedPntModeCnt = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_vkPhyDevice, m_PresentSurface, &supportedPntModeCnt, nullptr);
+    m_SupportedSurfacePresentModes.resize(supportedPntModeCnt);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_vkPhyDevice, m_PresentSurface, &supportedPntModeCnt, m_SupportedSurfacePresentModes.data());
 }
 
 bool Device::AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const

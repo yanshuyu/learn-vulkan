@@ -28,6 +28,8 @@ private:
     VkSurfaceKHR m_PresentSurface {VK_NULL_HANDLE};
     int m_DeviceQueuesPresentIdx{-1};
     
+    std::vector<VkSurfaceFormatKHR> m_SupportedPresentSurfaceFormats{};
+    std::vector<VkPresentModeKHR> m_SupportedSurfacePresentModes{};
 
     VkCommandPool m_DeviceQueueCmdPools[QUEUE_FAMILY_MAX_COUNT * 2];
     VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
@@ -65,6 +67,10 @@ public:
     bool SupportCompute() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_COMPUTE_INDEX]); }
     bool SupportTransfer() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]); }
     bool SupportPrenset(VkSurfaceKHR surface) const { return surface == m_PresentSurface && m_DeviceQueuesPresentIdx != -1; }
+    bool SupportPresent() const { return m_DeviceQueuesPresentIdx != -1; }
+    size_t GetSupportedPresentFormats(const VkSurfaceFormatKHR **ppFmts) const { *ppFmts = m_SupportedPresentSurfaceFormats.data(); return m_SupportedPresentSurfaceFormats.size(); }
+    size_t GetSupportedPresentModes(const VkPresentModeKHR** ppModes) const { *ppModes = m_SupportedSurfacePresentModes.data(); return m_SupportedSurfacePresentModes.size(); }
+    VkSurfaceKHR GetPresentSurface() const { return m_PresentSurface; }
 
     VkQueue GetGrapicQueue() const { return m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]; }
     VkQueue GetcomputeQueue() const { return m_DeviceQueues[QUEUE_FAMILY_COMPUTE_INDEX]; }
@@ -92,6 +98,7 @@ private:
     bool CreateCommandPools();
     bool CreateCommandBuffers();
     void QueryDeviceMemoryProperties();
+    void QueryDeviceSurfaceProperties();
     int GetOperationQueueFamilyIndex(DeviceJobOperation op);
     bool ReleaseCommandBufferImp(CommandBuffer* pCmdBuf);
 

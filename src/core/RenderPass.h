@@ -7,7 +7,7 @@ class RenderPass
 {
 
 public:
-    RenderPass(VkDevice device);
+    RenderPass(VkDevice device = VK_NULL_HANDLE);
     RenderPass(RenderPass&& other);
     RenderPass& operator = (RenderPass&& other);
     ~RenderPass();
@@ -20,7 +20,7 @@ public:
                             const std::vector<AttachmentLoadStoreAction>& attachmentLoadStoreActions,
                             std::vector<SubPassInputOutPutDesc>& subPassRWDescs); 
     void Release();
-
+    
     void AddAttachment(const AttachmentDesc& attachment, AttachmentLoadStoreAction loadStoreAction);
     bool CanAddSubPass(SubPassInputOutPutDesc& subPassInfo) const;
     bool AddSubPass(SubPassInputOutPutDesc& subPassInfo);
@@ -32,6 +32,12 @@ public:
 
     VkRenderPass GetHandle() const { return m_vkRenderPass; }
     VkDevice GetDeviceHandle() const { return m_vkDevice; }
+    void SetDeviceHandle(VkDevice device) 
+    { 
+        if(IsCreate()) 
+            return;
+        m_vkDevice = device;
+    }
 
 private:
 
