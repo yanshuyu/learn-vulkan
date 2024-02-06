@@ -6,15 +6,23 @@
 
 class Device;
 
+struct BufferDescription
+{
+    Device* device;
+    VkDeviceSize size;
+    VkBufferUsageFlags usage;
+    bool readWriteEnable;
+};
+
+
+
 class Buffer
 {
 private:
-    Device* _pDevice{nullptr};
+    BufferDescription _Desc{};
     VkBuffer _Buffer{VK_NULL_HANDLE};
     VkDeviceMemory _BufferMem{VK_NULL_HANDLE};
-
-    VkMemoryMapFlags _MemProp{0};
-    uint8_t* _MappedAdrr{nullptr};
+    uint8_t* _MappedData{nullptr};
 
 public:
     Buffer(){};
@@ -22,21 +30,18 @@ public:
 
     NONE_COPYABLE_NONE_MOVEABLE(Buffer)
 
-    Device* GetDevice() const { return _pDevice; }
+    Device* GetDevice() const { return _Desc.device; }
     VkBuffer GetHandle() const { return _Buffer; }
     VkDeviceMemory GetMemory() const { return _BufferMem; }
     
-    bool Initailize(Device* pDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
-    bool IsValid() const { return _pDevice != nullptr && VKHANDLE_IS_NOT_NULL(_Buffer) && VKHANDLE_IS_NOT_NULL(_BufferMem); }
+    bool Create(BufferDescription desc);
+    bool IsValid() const { return _Desc.device != nullptr && VKHANDLE_IS_NOT_NULL(_Buffer) && VKHANDLE_IS_NOT_NULL(_BufferMem); }
     void Release();
 
-    bool CanMap() const { return IsValid() && IsHostVisible(); }
-    bool IsMapped() const { return _MappedAdrr != nullptr; }
+    bool CanMap() const { return IsValid() && _Desc.readWriteEnable; }
+    bool IsMapped() const { return _MappedData != nullptr; }
     uint8_t* Map();
     void UnMap();
-    bool Update(uint8_t* data, size_t dataLen, size_t offset);
-
-private:
-    bool IsHostVisible() const { return _MemProp & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT > 0; }
-    bool IsCoherent() const { return _MemProp & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT > 0; }
+    size_t SetData(uint8_t* data, size_t dataLen, size_t offset);
+    size_t GetData(uint8_t* buffer, size_t bufLen, size_t offset);
 };
