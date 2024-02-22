@@ -4,7 +4,7 @@
 
 
 
-bool Buffer::Create(BufferDescription desc)
+bool Buffer::Create(BufferDesc desc)
 {
     if (IsValid())
         return true;
@@ -39,7 +39,7 @@ bool Buffer::Create(BufferDescription desc)
 
     
     VkDeviceMemory allocedMem = VK_NULL_HANDLE;
-    VkMemoryPropertyFlags memProp = desc.readWriteEnable ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT :  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkMemoryPropertyFlags memProp = desc.memFlags;
     if (!desc.device->AllocMemory(memReq.memoryTypeBits, memProp, memReq.size, &allocedMem))
         return false;
 
@@ -58,7 +58,7 @@ bool Buffer::Create(BufferDescription desc)
     if (!IsValid())
         return;
 
-    vkDestroyBuffer(_Decs.device->GetHandle(), _Buffer, nullptr);
+    vkDestroyBuffer(_Desc.device->GetHandle(), _Buffer, nullptr);
     vkFreeMemory(_Desc.device->GetHandle(), _BufferMem, nullptr);
     _Desc = {};
     VKHANDLE_SET_NULL(_Buffer);
@@ -73,6 +73,8 @@ bool Buffer::Create(BufferDescription desc)
 
       if (IsMapped())
           return _MappedData;
+
+      Flush();
 
       VkResult result = vkMapMemory(_Desc.device->GetHandle(), _BufferMem, 0, VK_WHOLE_SIZE, 0, (void **)(&_MappedData));
       if (result != VK_SUCCESS)
@@ -90,19 +92,21 @@ bool Buffer::Create(BufferDescription desc)
       if (!CanMap() || !IsMapped())
           return;
 
+      Flush();
+
       vkUnmapMemory(_Desc.device->GetHandle(), _BufferMem);
       _MappedData = nullptr;
   }
 
   size_t Buffer::SetData(uint8_t *data, size_t dataLen, size_t offset)
   {
-     Map();
+     //Map();
     if (!IsMapped())
         return 0;
 
     size_t writeLen = std::min(dataLen, _Desc.size - offset);
     std::memcpy(_MappedData + offset, data, writeLen);
-    UnMap();
+    //UnMap();
 
     return writeLen;
   }
@@ -118,4 +122,29 @@ bool Buffer::Create(BufferDescription desc)
     std::memcpy(buffer, _MappedData + offset, readLen);
 
     return readLen;
+  }
+
+  void Buffer::Flush() const
+  {
+      if (IsCoherent())
+          return;
+
+      VkMappedMemoryRange memMapRange{};
+      memMapRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+      memMapRange.pNext = nullptr;
+      memMapRange.memory = GetMemory();
+      memMapRange.offset = 0;
+      memMapRange.size = VK_WHOLE_SIZE;
+      if (!IsMapped()) // make device writes visible to client
+        vkInvalidateMappedMemoryRanges(GetDevice()->GetHandle(), 1, &memMapRange);
+      else // make client writes visible to device
+        vkFlushMappedMemoryRanges(GetDevice()->GetHandle(), 1, &memMapRange); 
+  }
+
+  void Buffer::Reset()
+  {
+    _Desc = {};
+    _Buffer = VK_NULL_HANDLE;
+    _BufferMem =VK_NULL_HANDLE;
+    _MappedData = nullptr;
   }

@@ -11,6 +11,7 @@
 class CommandBuffer;
 class Buffer;
 class Fence;
+class Window;
 
 
 class Device
@@ -24,38 +25,28 @@ private:
     std::vector<HardwareFeature> m_EnablePhyDeviceFeatures{};
 
     VkDevice m_vkDevice{VK_NULL_HANDLE};
-    VkQueue m_DeviceQueues[QUEUE_FAMILY_MAX_COUNT] {VK_NULL_HANDLE}; 
-    VkSurfaceKHR m_PresentSurface {VK_NULL_HANDLE};
-    int m_DeviceQueuesPresentIdx{-1};
-    
-    std::vector<VkSurfaceFormatKHR> m_SupportedPresentSurfaceFormats{};
-    std::vector<VkPresentModeKHR> m_SupportedSurfacePresentModes{};
-
-    VkCommandPool m_DeviceQueueCmdPools[QUEUE_FAMILY_MAX_COUNT * 2];
-    VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
+    VkQueue m_DeviceQueues[QueueFamilyIndices::MAX_INDEX]; 
+    VkCommandPool m_DeviceQueueCmdPools[QueueFamilyIndices::MAX_INDEX * 2];
+    //VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
 
 private:
     std::vector<Buffer*> _BuffersRes{};
     std::vector<Fence*> _Fences{};
 
-    ObjectPool<CommandBuffer> _CmdBufPool;
-
-public:
-    static Device* sActive;
-    static bool HasActive() { return sActive != nullptr; }
-    void SetActive() { sActive = this; }  
+    ObjectPool<CommandBuffer> _CmdBufPool{};
+    ObjectPool<Buffer> _BufferPool{};
 
 public:
     Device();
     ~Device() { Release(); };
 
-    NONE_COPYABLE(Device)
+    NONE_COPYABLE_NONE_MOVEABLE(Device)
     
     void SetDeviceFeatureHint(HardwareFeature feature, bool enabled);
     void SetDeviceExtendsionHint(const char* extendsionName, bool enabled) { vkutils_toggle_extendsion_or_layer_name_active(m_DeviceExtendsions, extendsionName, enabled); }
     void ResetAllHints();
 
-    bool Initailze(VkPhysicalDevice phyDevice, VkSurfaceKHR presentSurface);
+    bool Initailze(VkPhysicalDevice phyDevice);
     bool IsValid() const { return m_vkDevice != VK_NULL_HANDLE; }
     void Release();
     void WaitIdle() const;
@@ -63,23 +54,22 @@ public:
     VkDevice GetHandle() const { return m_vkDevice; }
     VkPhysicalDevice GetHardwardHandle() const { return m_vkPhyDevice; }
 
-    bool SupportGrapic() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]); }
-    bool SupportCompute() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_COMPUTE_INDEX]); }
-    bool SupportTransfer() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]); }
-    bool SupportPrenset(VkSurfaceKHR surface) const { return surface == m_PresentSurface && m_DeviceQueuesPresentIdx != -1; }
-    bool SupportPresent() const { return m_DeviceQueuesPresentIdx != -1; }
-    size_t GetSupportedPresentFormats(const VkSurfaceFormatKHR **ppFmts) const { *ppFmts = m_SupportedPresentSurfaceFormats.data(); return m_SupportedPresentSurfaceFormats.size(); }
-    size_t GetSupportedPresentModes(const VkPresentModeKHR** ppModes) const { *ppModes = m_SupportedSurfacePresentModes.data(); return m_SupportedSurfacePresentModes.size(); }
-    VkSurfaceKHR GetPresentSurface() const { return m_PresentSurface; }
+    bool SupportGrapic() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]); }
+    bool SupportCompute() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::COMPUTE_INDEX]); }
+    bool SupportTransfer() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]) || VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::TRANSFER_INDEX]); } // grapics queue must support transfer
+    bool SupportPrenset(Window* window) const { return VKHANDLE_IS_NOT_NULL(GetPresentQueue(window)); }
+    
+    VkQueue GetGrapicQueue() const { return m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]; }
+    VkQueue GetcomputeQueue() const { return m_DeviceQueues[QueueFamilyIndices::COMPUTE_INDEX]; }
+    VkQueue GetTransferQueue() const { return SupportGrapic() ? GetGrapicQueue() : m_DeviceQueues[QueueFamilyIndices::TRANSFER_INDEX]; }
+    VkQueue GetPresentQueue(Window* window) const;
 
-    VkQueue GetGrapicQueue() const { return m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]; }
-    VkQueue GetcomputeQueue() const { return m_DeviceQueues[QUEUE_FAMILY_COMPUTE_INDEX]; }
-    VkQueue GetTransferQueue() const { return m_DeviceQueues[QUEUE_FAMILY_GRAPICS_INDEX]; }
-    VkQueue GetPresentQueue() const { return m_DeviceQueuesPresentIdx == -1 ? VK_NULL_HANDLE : m_DeviceQueues[m_DeviceQueuesPresentIdx]; }
+    std::vector<VkSurfaceFormatKHR> GetSupportedPresentFormats(Window* window) const;
+    std::vector<VkPresentModeKHR> GetSupportedPresentModes(Window* window) const;
+    VkSurfaceCapabilitiesKHR GetSurfaceCapabilities(Window* window) const;
 
-    CommandBuffer* GetCommandBuffer(DeviceJobOperation op);
-    CommandBuffer* GetTempraryCommandBuffer(DeviceJobOperation op);
-    bool ReleaseCommandBuffer(CommandBuffer* pCmdBuf);
+    CommandBuffer* CreateCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, false); }
+    CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, true); }
     bool DestroyCommandBuffer(CommandBuffer* pCmdBuf);
 
     // Memory Alloc & Free
@@ -87,8 +77,10 @@ public:
     void FreeMemory(VkDeviceMemory mem);
 
     // Resource Create & Destroy
+    
     Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
     bool DestroyBuffer(Buffer* pBuffer);
+    
 
     Fence* CreateFence(bool signaled);
     bool DestroyFence(Fence* pFence);
@@ -96,15 +88,12 @@ public:
 private:
     bool CreateLogicalDevice(VkPhysicalDevice phyDevice);
     bool CreateCommandPools();
-    bool CreateCommandBuffers();
+    //bool CreateCommandBuffers();
     void QueryDeviceMemoryProperties();
-    void QueryDeviceSurfaceProperties();
-    int GetOperationQueueFamilyIndex(DeviceJobOperation op);
-    bool ReleaseCommandBufferImp(CommandBuffer* pCmdBuf);
-
-
+    //void QueryDeviceSurfaceProperties();
+    QueueFamilyIndices::Key GetQueueKey(VkQueue queue) const;   
+    CommandBuffer* CreateCommandBufferImp(VkQueue queue, bool temprary);
     bool AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const;
-
     VkPhysicalDeviceFeatures HardwareFeaturesToVkPhysicalDeviceFeatures() const;;
 };
 

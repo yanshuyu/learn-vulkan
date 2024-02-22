@@ -1,66 +1,54 @@
 #pragma once
+#include<memory>
 #include"core\CoreUtils.h"
-#include"core\VulkanInstance.h"
-#include"core\Device.h"
-#include"core\SwapChain.h"
 
 
-class GLFWwindow;
+class Window;
+class VulkanInstance;
+class Device;
+class SwapChain;
 
+
+struct AppDesc
+{   
+    bool debugEnabled;
+    uint32_t vulkanApiVersion;
+    size_t enabledInstanceLayerCout;
+    const char** enabledInstanceLayerNames;
+    size_t enabledInstanceExtendsionCount;
+    const char** enabledInstanceExtendsionNames;
+    size_t enabledDeviceExtendsionCount;
+    const char** enabledDeviceExtendsionNames;
+    size_t enabledDeviceFeatureCount;
+    const HardwareFeature* enabledDeviceFeatures;
+    VkQueueFlags enableQueueOperation;
+};
 
 
 class Application
 {
-    // GLFW Window
 private:
-    int m_WndWidth;
-    int m_WndHeight;
-    std::string m_WndTitle;
-    GLFWwindow* m_WndHandle{nullptr};
+    std::unique_ptr<VulkanInstance> m_pVulkanInstance;
+    std::unique_ptr<Device> m_pDevice;
+    std::unique_ptr<SwapChain> m_pSwapChain;    
+    Window* m_window{};
 
-   // vulkan
-private:
-    VulkanInstance m_VukanInstance{};
-    Device m_Device{};
-    SwapChain m_SwapChain{};        
-    VkSurfaceKHR m_vkSurface{VK_NULL_HANDLE};
+    AppDesc m_appDesc{};
     
 public:
-    Application(const char* wndTitle, int wndWidth, int wndHeight);
+    Application(const AppDesc& appDesc);
     virtual ~Application() {};
 
-    virtual bool RenderingSetUp();
-    virtual void Render() {};
-    virtual void RenderingCleanUp();
+    virtual bool Prepare(Window* window);
 
-    virtual bool ApplicationSetUp() { return true; };
-    virtual void ApplicationUpdate() {};
-    virtual void ApplicationCleanUp() {};
+    virtual void Step() = 0;
 
-    virtual bool Init() 
-    {
-        if (!RenderingSetUp())
-        {
-            LOGE("--->Rendering Set Up Failed!");
-            return false;
-        }
+    virtual void Finish();
 
-        if (!ApplicationSetUp())
-        {
-            LOGE("--->Application Set Up Failed!");
-            return false;
-        }
+    virtual bool Setup() { return true; };
 
-        return true;
-    }
-    virtual void Run();
+    virtual void Release() {};
 
-    virtual void ShutDown()
-    {
-        ApplicationCleanUp();
-
-        RenderingCleanUp();
-
-    };
+    virtual void Resize(size_t width, size_t height) {};
 
 };

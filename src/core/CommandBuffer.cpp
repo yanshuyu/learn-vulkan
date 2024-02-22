@@ -90,7 +90,7 @@ bool CommandBuffer::Execute()
 {
     if (!_temprary)
     {
-        LOGE("Command Buffer({}) is none-temprary commmand buffer, can't execute directly!");
+        LOGE("Command Buffer({}) is none-temprary commmand buffer, which is only execute by a render context, can't execute directly!", (void*)this);
         return false;
     }
 
@@ -121,7 +121,7 @@ bool CommandBuffer::Execute()
 
 bool CommandBuffer::Reset()
 {
-    if (!_temprary)
+    if (_temprary)
         return false;
 
     VkResult result = vkResetCommandBuffer(_vkCmdBuffer, 0);

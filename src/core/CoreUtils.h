@@ -40,14 +40,6 @@ enum HardwareFeature
     // will add more
 };
 
-enum DeviceJobOperation
-{
-    grapic,
-    compute,
-    transfer,
-    present,
-};
-
 
 struct AttachmentDesc
 {

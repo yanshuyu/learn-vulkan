@@ -1,158 +1,134 @@
 #include"Application.h"
-#include<GLFW\glfw3.h>
+#include"core\VulkanInstance.h"
+#include"core\Device.h"
+#include"core\SwapChain.h"
+#include"rendering\Window.h"
 
 
-
-static void GlfwErrorCallBack(int errCode, const char* errMsg)
-{
-    LOGE("GLFW Error: {}  Msg: {}", errCode, errMsg);
-}
-
-Application::Application(const char* wndTitle, int wndWidth, int wndHeight)
-: m_WndTitle(wndTitle)
-, m_WndWidth(wndWidth)
-, m_WndHeight(wndHeight)
+Application::Application(const AppDesc& appDesc)
+: m_appDesc(appDesc)
 {
 
 }
 
 
-
-bool Application::RenderingSetUp()
+bool Application::Prepare(Window* window)
 {
-    bool ok = true;
-    VkSurfaceFormatKHR swapChainPiexlFmt{};
-    VkExtent2D swapChainPiexlDimension{};
-
-    LOGI("-->Rendering SetUp...");
-
-    // we load vulkan statically,  canonical desktop loader library exports all Vulkan core and Khronos extension functions, allowing them to be called directly.
-    // so we don't need call this function
-    /* 
-    ok &= static_cast<bool>(glfwVulkanSupported());
-    std::cout << "Detect Vulkan Supported: " << ok << std::endl;
-    if (!ok)
-        goto init_result;
-    */
-    ////////////////////////////////////////////////////////////
-    // Init Window
-    ////////////////////////////////////////////////////////////
-    ok &= static_cast<bool>(glfwInit());
-    LOGI("-->glfw Init: {}", ok);
-    if (!ok)
-        goto init_result;
-    
-    glfwSetErrorCallback(GlfwErrorCallBack);
-
-    // Create Platform Specify Window
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // bydefault, glfwCreateWindow will create window and proper opengl(es) context
-                                                // by set GLFW_CLIENT_API hint, we tell glfw create window for vulkan not gl
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-    m_WndHandle = glfwCreateWindow(m_WndWidth, m_WndHeight, m_WndTitle.data(), nullptr, nullptr);
-    ok &= (m_WndHandle != nullptr);
-    LOGI("-->glfw Create Window: {}", ok);
-    if (!ok)
-        goto init_result;
-
     ////////////////////////////////////////////////////////////////////////////////
     // Init Vulkan
     /////////////////////////////////////////////////////////////////////////////////
     //create vulkan instance
+    m_pVulkanInstance = std::make_unique<VulkanInstance>();
     uint32_t glfwRequireInstanceExtensionCnt = 0;
-    const char** glfwRequireInstanceExtensionNames = glfwGetRequiredInstanceExtensions(&glfwRequireInstanceExtensionCnt);
+    const char** glfwRequireInstanceExtensionNames = window->GetRequireVulkanInstanceExtendsion(&glfwRequireInstanceExtensionCnt);
     for (size_t i = 0; i < glfwRequireInstanceExtensionCnt; i++)
     {
-        m_VukanInstance.SetInstanceExtendsionHint(*glfwRequireInstanceExtensionNames, true);
-        glfwRequireInstanceExtensionNames++;
+        m_pVulkanInstance->SetInstanceExtendsionHint(glfwRequireInstanceExtensionNames[i], true);
     }
-    m_VukanInstance.SetDebugEnableHint(true);
-     
-    ok &= m_VukanInstance.Initailize();
-    LOGI("--> Vulkan Instance Create: {}", ok);
-    if (!ok)
-        goto init_result;
 
-    m_VukanInstance.SetActive();
+    for (size_t i = 0; i < m_appDesc.enabledInstanceExtendsionCount; i++)
+    {   
+        m_pVulkanInstance->SetInstanceExtendsionHint( m_appDesc.enabledInstanceExtendsionNames[i], true);
+    }
     
-    // Create vulkan platform specific window surface
-    ok &= glfwCreateWindowSurface(VulkanInstance::sActive->GetHandle(), m_WndHandle, nullptr, &m_vkSurface) == VK_SUCCESS;
-    LOGI("-->Create Vulkan Surface: {}", ok);
-    if (!ok)
-        goto init_result;
+    for (size_t i = 0; i < m_appDesc.enabledInstanceLayerCout; i++)
+    {
+       m_pVulkanInstance->SetInstanceLayerHint(m_appDesc.enabledInstanceLayerNames[i], true);
+    }
+    
 
+    m_pVulkanInstance->SetDebugEnableHint(m_appDesc.debugEnabled);
+     
+    m_pVulkanInstance->SetApiVersionHint(m_appDesc.vulkanApiVersion);
+
+    if (!m_pVulkanInstance->Initailize())
+    {
+        LOGE("-->App Prepare: Failed to init vulkan instance");
+        return false;
+    }
+
+    //m_VukanInstance.SetActive();
+    
     // Find a physical gpu which support expected operation
-    VkPhysicalDevice suitableGpu = VulkanInstance::sActive->RequestPhysicalDevice(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT, m_vkSurface);
-    ok &= VKHANDLE_IS_NOT_NULL(suitableGpu);
-    LOGI("--> Find Suitable Gpu: {}", ok);
-    if (!ok)
-        goto init_result;
+    VkPhysicalDevice suitableGpu = m_pVulkanInstance->RequestPhysicalDevice(m_appDesc.enableQueueOperation, window->GetVulkanSurface());
+    if (VKHANDLE_IS_NULL(suitableGpu))
+    {
+        LOGE("-->App Prepare: No avalible device!");
+        return false;
+    }
+    else
+    {
+        LOGI("-->App Prepare: Avalible device({})", (void*)suitableGpu);
+        LOGI("\tqueue family index\t|\tqueue operation\t|\tqueue count\n");
+        QueueFamilyIndices queueFamIndices(suitableGpu);
+        for (size_t i = 0; i < queueFamIndices.QueueFamilyCount(); i++)
+        {
+            VkQueueFamilyProperties prop = queueFamIndices.QueueFamilyProperties(i);
+            LOGI("\t{}\t{}\t{}", i, prop.queueFlags, prop.queueCount);
+        }
+    }
 
     // Create vulkan logical Device
-    m_Device.SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
-    ok &= m_Device.Initailze(suitableGpu, m_vkSurface);
-    LOGI("--> Create Vulkan Device: {}", ok);
-    if (!ok)
-        goto init_result;
+    m_pDevice = std::make_unique<Device>();
+    m_pDevice->SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
+    for (size_t i = 0; i < m_appDesc.enabledDeviceExtendsionCount; i++)
+    {
+        m_pDevice->SetDeviceExtendsionHint(m_appDesc.enabledDeviceExtendsionNames[i], true);
+    }
+    
+    for (size_t j = 0; j < m_appDesc.enabledDeviceFeatureCount; j++)
+    {
+        m_pDevice->SetDeviceFeatureHint(m_appDesc.enabledDeviceFeatures[j], true);
+    }
+    
 
-    m_Device.SetActive();
+    if (!m_pDevice->Initailze(suitableGpu))
+    {
+       LOGE("-->App Prepare: Failed to init device!");
+       return false; 
+    }
+
+    //m_Device.SetActive();
+
+    // Create vulkan platform specific window surface
+    if (VKHANDLE_IS_NULL(window->CreateVulkanSurface(m_pVulkanInstance->GetHandle())))
+    {
+        LOGE("-->App Prepare: Failed to init vulkan surface!");
+        return false;
+    }
+    m_window = window;
+
 
     // Create SwapChain ()
-    swapChainPiexlFmt.format = VK_FORMAT_B8G8R8A8_UNORM;
-    swapChainPiexlFmt.colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    glfwGetFramebufferSize(m_WndHandle, reinterpret_cast<int*>(&swapChainPiexlDimension.width), reinterpret_cast<int*>(&swapChainPiexlDimension.height));
-    m_SwapChain.Init(Device::sActive->GetHardwardHandle(), Device::sActive->GetHandle(), m_vkSurface);
-    ok &= m_SwapChain.Create(swapChainPiexlFmt, VK_PRESENT_MODE_MAILBOX_KHR, 2, swapChainPiexlDimension);
-    LOGI("--> Create SwapChain: {}",ok);
-    if (!ok)
-        goto init_result;
+    m_pSwapChain = std::make_unique<SwapChain>();
 
-init_result:
-    LOGI("-->Rendering SetUp Finish:  {}", ok);  
-    return ok;
+
+    // concrete application will prepare it's resource here...
+    return Setup();
 }
 
 
-
-void Application::RenderingCleanUp()
+void Application::Finish()
 {
-    LOGI("--> Rendering CleanUp...")
-    m_Device.WaitIdle();
+    // makre sure all cmd are finish
+    m_pDevice->WaitIdle();
 
-    m_SwapChain.Release();
+    // concrete application must relase all device's child resource here ...
+    Release();
 
-    if (m_vkSurface != nullptr)
-    {
-        vkDestroySurfaceKHR(m_VukanInstance.GetHandle(), m_vkSurface, nullptr);
-        m_vkSurface = nullptr;
-        LOGI("--> destory Vulkan Surface." );
-    }
+    m_pSwapChain->Release();
 
-    m_Device.Release();
-    LOGI("--> destory Vulkan Device." );
+    // it's safer to destory device firstly, becuse device's render cmd will present to window surface
+    m_pDevice->Release();
 
-    m_VukanInstance.Release();
-    LOGI("--> destory Vulkan Instance." );
+    // make sure destory all instance's child resource before destoy instance
+    if (m_window)
+        m_window->DestroyVulkanSurface(m_pVulkanInstance->GetHandle());
 
-    if (m_WndHandle != nullptr)
-    {
-        glfwDestroyWindow(m_WndHandle);
-        m_WndHandle = nullptr;
-        LOGI("--> destory GLFW Window." );
-    }
+    // finally destroy instance
+    m_pVulkanInstance->Release();
 
-    glfwTerminate();
-    
-}
-
-
-
-void Application::Run()
-{
-    while (!glfwWindowShouldClose(m_WndHandle))
-    {
-        ApplicationUpdate();
-        Render();
-        glfwPollEvents();
-    }
+    m_pDevice.reset(nullptr);
+    m_pSwapChain.reset(nullptr);
+    m_pVulkanInstance.reset(nullptr);
 }

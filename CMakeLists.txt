@@ -13,10 +13,14 @@ set(VULKAN_LIB_DIR ${PROJECT_SOURCE_DIR}/vulkan/Lib)
 # project src
 aux_source_directory(${PROJECT_SOURCE_DIR}/src/core CORE_CXX_FILES)
 message("****************************CORE_CXX_FILES: ${CORE_CXX_FILES}")
-aux_source_directory(${PROJECT_SOURCE_DIR} DEMO_CXX_FILES)
-message("****************************DEMO_CXX_FILES: ${DEMO_CXX_FILES}")
+aux_source_directory(${PROJECT_SOURCE_DIR}/src/rendering RENDERING_CXX_FILES)
+message("****************************RENDERING_CXX_FILES: ${RENDERING_CXX_FILES}")
+aux_source_directory(${PROJECT_SOURCE_DIR}/sample SAMPLE_CXX_FILES)
+message("****************************SAMPLE_CXX_FILES: ${SAMPLE_CXX_FILES}")
+aux_source_directory(${PROJECT_SOURCE_DIR} MAIN_CXX_FILES)
+message("****************************MAIN_CXX_FILES: ${MAIN_CXX_FILES}")
 
-add_executable(${PROJECT_NAME} ${CORE_CXX_FILES} ${DEMO_CXX_FILES})
+add_executable(${PROJECT_NAME} ${MAIN_CXX_FILES} ${SAMPLE_CXX_FILES} ${CORE_CXX_FILES} ${RENDERING_CXX_FILES})
 
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src ${GLFW_INC_DIR} ${VULKAN_INC_DIR})
 target_link_directories(${PROJECT_NAME} PRIVATE ${GLFW_LIB_DIR} ${VULKAN_LIB_DIR})

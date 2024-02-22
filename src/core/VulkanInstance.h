@@ -12,51 +12,15 @@ private:
 
     VkDebugUtilsMessengerEXT m_vkDebugMsger{VK_NULL_HANDLE};
     VkInstance m_vkInstance{VK_NULL_HANDLE};
-
+    
 public:
-    static VulkanInstance* sActive;
-    static bool HasActive() { return sActive != nullptr; }
-    void SetActive() { sActive = this; }
-
-public:
-    VulkanInstance(){};
-    VulkanInstance(VulkanInstance&& other)
-    {
-        m_ApiVersion = other.m_ApiVersion;
-        m_DebugEnabled = other.m_DebugEnabled;
-        std::swap(m_InstanceExtendsions, other.m_InstanceExtendsions);
-        std::swap(m_InstanceLayers, other.m_InstanceLayers);
-        m_vkDebugMsger = other.m_vkDebugMsger;
-        m_vkInstance = other.m_vkInstance;
-        other.ResetAllHints();
-        other.m_vkInstance = VK_NULL_HANDLE;
-        other.m_vkDebugMsger = VK_NULL_HANDLE;
-    }
-
-    VulkanInstance& operator = (VulkanInstance&& other)
-    {
-        if (this != &other)
-        {
-            Release();
-            m_ApiVersion = other.m_ApiVersion;
-            m_DebugEnabled = other.m_DebugEnabled;
-            std::swap(m_InstanceExtendsions, other.m_InstanceExtendsions);
-            std::swap(m_InstanceLayers, other.m_InstanceLayers);
-            m_vkDebugMsger = other.m_vkDebugMsger;
-            m_vkInstance = other.m_vkInstance;
-            other.ResetAllHints();
-            other.m_vkInstance = VK_NULL_HANDLE;
-            other.m_vkDebugMsger = VK_NULL_HANDLE;
-        }
-
-        return *this;
-    }
+    VulkanInstance() = default;
     ~VulkanInstance()
     {
         Release();
     };
 
-    NONE_COPYABLE(VulkanInstance)
+    NONE_COPYABLE_NONE_MOVEABLE(VulkanInstance)
 
     void SetApiVersionHint(uint32_t prefferVersion) { m_ApiVersion = prefferVersion; }
     void SetDebugEnableHint(bool enabled) { m_DebugEnabled = enabled; }

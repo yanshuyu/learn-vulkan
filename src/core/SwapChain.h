@@ -2,43 +2,46 @@
 #include<vulkan\vulkan.h>
 #include<vector>
 
-using std::vector;
+class Device;
+class Window;
 
-struct SwapChain
+struct SwapChainDesc
+{
+    size_t bufferCount;
+    VkExtent2D bufferExtend;
+    VkFormat format;
+    VkColorSpaceKHR colorSpace;
+    bool enableVSync;
+};
+
+
+
+class SwapChain
 {
 private:
-    VkSurfaceCapabilitiesKHR m_capabilities{};
-    vector<VkSurfaceFormatKHR> m_SupportedFormats{};
-    vector<VkPresentModeKHR> m_SupportedPresentModes{};
-    VkSurfaceKHR m_vkSurface{VK_NULL_HANDLE};
-    VkPhysicalDevice m_vkPhyDevice{VK_NULL_HANDLE};
-    VkDevice m_vkDevice{VK_NULL_HANDLE};
-    VkSwapchainKHR m_vkSwapChain{VK_NULL_HANDLE};
+    Device* m_pDevice{nullptr};
+    Window* m_Window;
 
-    vector<VkImage> m_SwapChainImages{};
-    vector<VkImageView> m_SwapChainImageViews{};
+    VkSwapchainKHR m_vkSwapChain{VK_NULL_HANDLE};
     VkSurfaceFormatKHR m_SwapChainPxlFmt{};
     VkExtent2D m_SwapChainPxlDimension{};
+    VkPresentModeKHR m_SwapChainPresentMode{};
+
+    std::vector<VkImage> m_SwapChainImages{};
+    std::vector<VkImageView> m_SwapChainImageViews{};
     
 
 public:
-    void Init(VkPhysicalDevice phyDevice, VkDevice device, VkSurfaceKHR surface);
-    bool Create(VkSurfaceFormatKHR prefferFmt,
-                VkPresentModeKHR prefferPresentMode,
-                int prefferQueuedImgCnt,
-                VkExtent2D prefferImageSz);
+    SwapChain() {};
+    ~SwapChain() { Release(); }
+
+    bool Create(Device* device, Window* window, const SwapChainDesc& desc);
+    VkSwapchainKHR GetHandle() const { return m_vkSwapChain; }
+    size_t GetBufferCount() const { return m_SwapChainImages.size(); }
+    VkExtent2D GetBufferSize() const { return m_SwapChainPxlDimension; }
+    VkSurfaceFormatKHR GetBufferFormat() const { return m_SwapChainPxlFmt; }
+    VkPresentModeKHR getPresentMode() const { return m_SwapChainPresentMode; }
+
+    bool IsValid() const { return m_pDevice != nullptr && m_Window != nullptr && m_vkSwapChain != VK_NULL_HANDLE; }
     void Release();
-
-    bool IsInited() const
-    {
-        return m_vkSurface != VK_NULL_HANDLE
-                && m_vkPhyDevice != VK_NULL_HANDLE 
-                && m_SupportedFormats.size() > 0 
-                && m_SupportedPresentModes.size() > 0;
-    }
-
-    bool IsCreated() const 
-    {
-        return m_vkSwapChain != VK_NULL_HANDLE;
-    }
 };

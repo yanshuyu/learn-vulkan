@@ -1,8 +1,6 @@
 #include"core\VulkanInstance.h"
 #include"core\QueueFamilyIndices.h"
 
-VulkanInstance* VulkanInstance::sActive = nullptr;
-
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL __DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
                                                                 VkDebugUtilsMessageTypeFlagsEXT msgType,
@@ -116,6 +114,8 @@ bool VulkanInstance::Initailize()
     if (m_ApiVersion == 0)
         vkEnumerateInstanceVersion(&m_ApiVersion);
 
+    LOGI("-->Vulkan Instance Veriosn: {}.{}.{}", VK_VERSION_MAJOR(m_ApiVersion), VK_VERSION_MINOR(m_ApiVersion), VK_VERSION_PATCH(m_ApiVersion));
+
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pEngineName = "No Engine";
@@ -211,9 +211,9 @@ VkPhysicalDevice VulkanInstance::RequestPhysicalDevice(VkQueueFlags queueOperati
     for (size_t i=0; i<physicalDeviceCnt; i++ )
     {
         vkGetPhysicalDeviceProperties(physicalDevices[i], &physicalDeviceProps[i]);
-        LOGI("index\tDevice Name\t\t\tDevice Type\t\t\tDriver Version");
+        LOGI("ID\tDevice Name\t\t\tDevice Type\t\t\tDriver Version\n");
         LOGI("{}\t{}\t{}\t{}",
-             i,
+             (void*)physicalDevices[i],
              physicalDeviceProps[i].deviceName,
              s_PhysicalDeviceTypeNames[(size_t)physicalDeviceProps[i].deviceType],
              physicalDeviceProps[i].driverVersion);
@@ -243,13 +243,9 @@ VkPhysicalDevice VulkanInstance::RequestPhysicalDevice(VkQueueFlags queueOperati
     }
     
     if (suitablePhyDeviceIndex == -1)
-    {
-        LOGE("-->Failed to find suitable physical device for application");
         return VK_NULL_HANDLE;
-    }  
 
     return physicalDevices[suitablePhyDeviceIndex];
-
 }
 
 
@@ -275,10 +271,7 @@ void VulkanInstance::Release()
         if (m_vkInstance != VK_NULL_HANDLE)
         {
             vkDestroyInstance(m_vkInstance, nullptr);
-            m_vkInstance = VK_NULL_HANDLE;
-            
-            if (sActive == this)
-                sActive = nullptr;
+            VKHANDLE_SET_NULL(m_vkInstance);
         }
         
         ResetAllHints();
