@@ -38,3 +38,56 @@ void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string> &ar
         arr.push_back(name);
     }
 }
+
+size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz)
+{
+
+    std::memset(strbuf, NULL, bufSz);
+
+    const VkQueueFlagBits allFlagBits[] = {
+        VK_QUEUE_GRAPHICS_BIT,
+        VK_QUEUE_COMPUTE_BIT,
+        VK_QUEUE_TRANSFER_BIT,
+        VK_QUEUE_SPARSE_BINDING_BIT,
+        VK_QUEUE_PROTECTED_BIT,
+        VK_QUEUE_VIDEO_DECODE_BIT_KHR,
+        VK_QUEUE_OPTICAL_FLOW_BIT_NV,
+    };
+
+    const char* flagBitStrs[] = {
+        "G",
+        "C",
+        "T",
+        "SB",
+        "P",
+        "VD",
+        "OF",
+    };
+
+    size_t pos = 0;
+    for (size_t i = 0; i < 7; i++)
+    {
+        if (pos >= bufSz)
+            break;
+
+        if (flags & allFlagBits[i])
+        {
+            if (pos > 0)
+            {
+                strbuf[pos] = '|';
+                pos++;
+            }
+
+            const char* str = flagBitStrs[i];
+            while (*str != NULL && pos < bufSz)
+            {
+                strbuf[pos] = *str;
+                str++;
+                pos++;
+            }
+ 
+        }
+    }
+    
+    return pos;
+}

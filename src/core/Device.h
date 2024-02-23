@@ -66,7 +66,7 @@ public:
 
     std::vector<VkSurfaceFormatKHR> GetSupportedPresentFormats(Window* window) const;
     std::vector<VkPresentModeKHR> GetSupportedPresentModes(Window* window) const;
-    VkSurfaceCapabilitiesKHR GetSurfaceCapabilities(Window* window) const;
+    bool GetSurfaceCapabilities(Window* window, VkSurfaceCapabilitiesKHR* pResult) const;
 
     CommandBuffer* CreateCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, false); }
     CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, true); }

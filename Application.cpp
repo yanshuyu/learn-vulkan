@@ -48,9 +48,20 @@ bool Application::Prepare(Window* window)
     }
 
     //m_VukanInstance.SetActive();
-    
+
+    // Create vulkan platform specific window surface
+    if (window)
+    {
+        if (VKHANDLE_IS_NULL(window->CreateVulkanSurface(m_pVulkanInstance->GetHandle())))
+        {
+            LOGE("-->App Prepare: Failed to init vulkan surface!");
+            return false;
+        }
+        m_window = window;
+    }
+
     // Find a physical gpu which support expected operation
-    VkPhysicalDevice suitableGpu = m_pVulkanInstance->RequestPhysicalDevice(m_appDesc.enableQueueOperation, window->GetVulkanSurface());
+    VkPhysicalDevice suitableGpu = m_pVulkanInstance->RequestPhysicalDevice(m_appDesc.enableQueueOperation, window ? window->GetVulkanSurface() : VK_NULL_HANDLE);
     if (VKHANDLE_IS_NULL(suitableGpu))
     {
         LOGE("-->App Prepare: No avalible device!");
@@ -59,18 +70,22 @@ bool Application::Prepare(Window* window)
     else
     {
         LOGI("-->App Prepare: Avalible device({})", (void*)suitableGpu);
-        LOGI("\tqueue family index\t|\tqueue operation\t|\tqueue count\n");
+        LOGI("\tQueueFamilyIndex\t|\tQueueOperation\t|\tQueueCount\n");
         QueueFamilyIndices queueFamIndices(suitableGpu);
+            char ss[64]{};
         for (size_t i = 0; i < queueFamIndices.QueueFamilyCount(); i++)
         {
             VkQueueFamilyProperties prop = queueFamIndices.QueueFamilyProperties(i);
-            LOGI("\t{}\t{}\t{}", i, prop.queueFlags, prop.queueCount);
+            vkutils_queue_flags_str(prop.queueFlags, ss, 64);
+            LOGI("\t{}\t{}\t{}", i, ss, prop.queueCount);
         }
     }
 
     // Create vulkan logical Device
     m_pDevice = std::make_unique<Device>();
-    m_pDevice->SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
+    if (window)
+        m_pDevice->SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
+    
     for (size_t i = 0; i < m_appDesc.enabledDeviceExtendsionCount; i++)
     {
         m_pDevice->SetDeviceExtendsionHint(m_appDesc.enabledDeviceExtendsionNames[i], true);
@@ -90,19 +105,23 @@ bool Application::Prepare(Window* window)
 
     //m_Device.SetActive();
 
-    // Create vulkan platform specific window surface
-    if (VKHANDLE_IS_NULL(window->CreateVulkanSurface(m_pVulkanInstance->GetHandle())))
-    {
-        LOGE("-->App Prepare: Failed to init vulkan surface!");
-        return false;
-    }
-    m_window = window;
-
-
     // Create SwapChain ()
-    m_pSwapChain = std::make_unique<SwapChain>();
-
-
+    if (window)
+    {
+        SwapChainDesc desc{};
+        desc.format = m_appDesc.swapChainColorFormat;
+        desc.colorSpace = m_appDesc.swapChainColorSpace;
+        desc.bufferExtend = {(uint32_t)m_window->GetWidth(), (uint32_t)m_window->GetHeight()};
+        desc.enableVSync = m_appDesc.vsyncEnabled;
+        desc.enableTripleBuffering = m_appDesc.swapChainTrippleBufferEnabled;
+        m_pSwapChain = std::make_unique<SwapChain>();
+        if ( !m_pSwapChain->Create(m_pDevice.get(), m_window, desc))
+        {
+            LOGE("-->App Prepare: Failed to init swapchian!");
+            return false;
+        }
+    }
+    
     // concrete application will prepare it's resource here...
     return Setup();
 }

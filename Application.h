@@ -12,6 +12,8 @@ class SwapChain;
 struct AppDesc
 {   
     bool debugEnabled;
+    bool vsyncEnabled;
+    bool swapChainTrippleBufferEnabled;
     uint32_t vulkanApiVersion;
     size_t enabledInstanceLayerCout;
     const char** enabledInstanceLayerNames;
@@ -22,6 +24,9 @@ struct AppDesc
     size_t enabledDeviceFeatureCount;
     const HardwareFeature* enabledDeviceFeatures;
     VkQueueFlags enableQueueOperation;
+    VkFormat swapChainColorFormat;
+    VkColorSpaceKHR swapChainColorSpace;
+
 };
 
 

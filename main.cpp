@@ -28,6 +28,9 @@ int main(int, char**)
 
     appDesc.debugEnabled = true;
     appDesc.enableQueueOperation = VK_QUEUE_GRAPHICS_BIT;
+    appDesc.swapChainColorFormat = VK_FORMAT_B8G8R8A8_UNORM;
+    appDesc.swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    appDesc.swapChainTrippleBufferEnabled = true;
 
     try
     {

@@ -26,6 +26,14 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
         LOGE("SwapChain Create Error: device({}) is not able present!", (void*)pDevice);
         return false;
     }
+    
+    
+    VkSurfaceCapabilitiesKHR surCaps; 
+    if (!pDevice->GetSurfaceCapabilities(pWindow, &surCaps))
+    {
+        LOGE("SwapChain Create Error: Failed to get device({}) capabilities!", (void*)pDevice);
+        return false;
+    }
 
    
     auto supportedFmts = pDevice->GetSupportedPresentFormats(pWindow);
@@ -56,8 +64,6 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
             break;
     }
 
-    VkSurfaceCapabilitiesKHR surCaps = pDevice->GetSurfaceCapabilities(pWindow);
-
     //Vulkan tells us to match the resolution of the window by setting the width and height in the currentExtent membe
     //some window managers do allow us to differ here and this is indicated by setting the width and height in currentExtent to a special value: the maximum value of uint32_t
     //in this case, we want to set extent to match the window size in piexs by manully
@@ -71,13 +77,14 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
     imageExtent.height = std::clamp(imageExtent.height, surCaps.minImageExtent.height, surCaps.maxImageExtent.height);
     
     
-    size_t bufCount = std::clamp((uint32_t)desc.bufferCount, surCaps.minImageCount, surCaps.maxImageCount);
-    while (bufCount <= 1)
+    uint32_t bufCount = desc.enableTripleBuffering ? 3 : 2;
+    bufCount = std::clamp(bufCount, surCaps.minImageCount, surCaps.maxImageCount);
+    if (bufCount < 2)
     {
-        bufCount++; 
+        LOGE("-->SwapChian Create Error: platform can't support double/tripple buffering");
+        return false;
     }
-    // double buffering minimul
-    bufCount = std::clamp((uint32_t)desc.bufferCount, surCaps.minImageCount, surCaps.maxImageCount);
+    
 
     VkSwapchainCreateInfoKHR swapChainCrateInfo{};
     swapChainCrateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -89,7 +96,7 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
     swapChainCrateInfo.imageFormat = surfaceFmt.format;
     swapChainCrateInfo.imageColorSpace = surfaceFmt.colorSpace;
     swapChainCrateInfo.imageExtent = imageExtent;
-    swapChainCrateInfo.minImageCount = (uint32_t)bufCount;
+    swapChainCrateInfo.minImageCount = bufCount;
     swapChainCrateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapChainCrateInfo.imageArrayLayers = 1;
 
@@ -119,6 +126,8 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
         return false;
     }
 
+    m_pDevice = pDevice;
+    m_Window = pWindow;
     m_vkSwapChain = createdSwapChain;
     m_SwapChainPxlFmt = surfaceFmt;
     m_SwapChainPxlDimension = imageExtent;
@@ -168,4 +177,24 @@ void SwapChain::Release()
     m_SwapChainImageViews.clear();
     m_SwapChainPxlDimension = {0, 0};
     m_SwapChainPxlFmt = {};
+}
+
+
+
+bool SwapChain::AquireNextBuffer(VkSemaphore s, uint32_t* imageIdx, uint64_t timeOut) const
+{
+    if (!IsValid())
+        return false;
+    
+    return vkAcquireNextImageKHR(m_pDevice->GetHandle(), m_vkSwapChain, timeOut, s, VK_NULL_HANDLE, imageIdx) == VK_SUCCESS;
+}
+
+
+
+bool SwapChain::AquireNextBuffer(VkFence f, uint32_t* imageIdx, uint64_t timeOut) const
+{
+    if (!IsValid())
+    return false;
+    
+    return vkAcquireNextImageKHR(m_pDevice->GetHandle(), m_vkSwapChain, timeOut, VK_NULL_HANDLE, f, imageIdx) == VK_SUCCESS;
 }

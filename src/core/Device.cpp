@@ -572,12 +572,15 @@ std::vector<VkPresentModeKHR> Device::GetSupportedPresentModes(Window* window) c
 }
 
 
-VkSurfaceCapabilitiesKHR Device::GetSurfaceCapabilities(Window* window) const
+bool Device::GetSurfaceCapabilities(Window* window, VkSurfaceCapabilitiesKHR* pResult) const
 {
+    if (pResult == nullptr)
+        return false;
+
     VkSurfaceCapabilitiesKHR surfaceCaps{};
     VkSurfaceKHR surface = window->GetVulkanSurface();
     if (!IsValid() || VKHANDLE_IS_NULL(surface))
-        return surfaceCaps;
+        return false;
     
-
+    return vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_vkPhyDevice, surface, pResult) == VK_SUCCESS;
 }

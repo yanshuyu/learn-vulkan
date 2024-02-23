@@ -110,3 +110,6 @@ VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt
 
 
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& arr, const char* name, bool enabled);
+
+
+size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz);
