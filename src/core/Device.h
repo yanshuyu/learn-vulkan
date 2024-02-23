@@ -62,7 +62,7 @@ public:
     VkQueue GetGrapicQueue() const { return m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]; }
     VkQueue GetcomputeQueue() const { return m_DeviceQueues[QueueFamilyIndices::COMPUTE_INDEX]; }
     VkQueue GetTransferQueue() const { return SupportGrapic() ? GetGrapicQueue() : m_DeviceQueues[QueueFamilyIndices::TRANSFER_INDEX]; }
-    VkQueue GetPresentQueue(Window* window) const;
+    VkQueue GetPresentQueue(const Window* window) const;
 
     std::vector<VkSurfaceFormatKHR> GetSupportedPresentFormats(Window* window) const;
     std::vector<VkPresentModeKHR> GetSupportedPresentModes(Window* window) const;

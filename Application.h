@@ -32,7 +32,7 @@ struct AppDesc
 
 class Application
 {
-private:
+protected:
     std::unique_ptr<VulkanInstance> m_pVulkanInstance;
     std::unique_ptr<Device> m_pDevice;
     std::unique_ptr<SwapChain> m_pSwapChain;    

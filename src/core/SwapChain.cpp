@@ -155,6 +155,8 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
         viewCreateInfo.subresourceRange.layerCount = 1;
         vkCreateImageView(pDevice->GetHandle(), &viewCreateInfo, nullptr, &m_SwapChainImageViews[i]);
     }
+
+    return true;
 }
 
 

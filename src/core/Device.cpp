@@ -509,7 +509,7 @@ CommandBuffer* Device::CreateCommandBufferImp(VkQueue queue, bool temprary)
 }
 
 
-VkQueue Device::GetPresentQueue(Window* window) const
+VkQueue Device::GetPresentQueue(const Window* window) const
 {
     VkSurfaceKHR surface = window->GetVulkanSurface();
     if (VKHANDLE_IS_NULL(surface))

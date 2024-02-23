@@ -2,6 +2,7 @@
 #include<vulkan\vulkan.h>
 #include<vector>
 #include"spdlog\spdlog.h"
+#include<stdexcept>
 
 // Macros
 #define NONE_COPYABLE(ClassName) ClassName(const ClassName &) = delete; \
@@ -18,6 +19,12 @@ ClassName operator = (ClassName&&) = delete;
 #define VKHANDLE_IS_NULL(vkHandle) (vkHandle == VK_NULL_HANDLE)
 #define VKHANDLE_IS_NOT_NULL(vkHandle) (vkHandle != VK_NULL_HANDLE)
 #define VKHANDLE_SET_NULL(vkHandle) (vkHandle = VK_NULL_HANDLE)
+#define VKCALL_SUCCESS(vkResult) (vkResult == VK_SUCCESS)
+#define VKCALL_FAILED(vkResult) (vkResult != VK_SUCCESS)
+#define VKCALL_THROW_IF_FAILED(vkResult, msg) if (vkResult != VK_SUCCESS) throw std::runtime_error(msg)
+#define THROW_IF(boolean, msg) if(boolean) throw std::runtime_error(msg)
+#define THROW_IF_NOT(boolean, msg) if(!boolean) throw std::runtime_error(msg)
+
 
 // loging
 #define ROOT_PATH_SIZE 64
