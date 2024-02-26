@@ -137,7 +137,7 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
     m_SwapChainImages.resize(imageCnt);
     vkGetSwapchainImagesKHR(pDevice->GetHandle(), m_vkSwapChain, &imageCnt, m_SwapChainImages.data());
 
-    m_SwapChainImageViews.resize(m_SwapChainImages.size());
+    m_SwapChainImageViews.resize(m_SwapChainImages.size(), VK_NULL_HANDLE);
     for (size_t i = 0; i < m_SwapChainImages.size(); i++)
     {
         VkImageViewCreateInfo viewCreateInfo{};
@@ -153,7 +153,11 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
         viewCreateInfo.subresourceRange.levelCount = 1;
         viewCreateInfo.subresourceRange.baseArrayLayer = 0;
         viewCreateInfo.subresourceRange.layerCount = 1;
-        vkCreateImageView(pDevice->GetHandle(), &viewCreateInfo, nullptr, &m_SwapChainImageViews[i]);
+        if (VKCALL_FAILED(vkCreateImageView(pDevice->GetHandle(), &viewCreateInfo, nullptr, &m_SwapChainImageViews[i])))
+        {
+            LOGE("Device({}) create swap chain views error!", (void*)pDevice);
+            return false;
+        }
     }
 
     return true;

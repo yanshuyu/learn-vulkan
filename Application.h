@@ -26,7 +26,7 @@ struct AppDesc
     VkQueueFlags enableQueueOperation;
     VkFormat swapChainColorFormat;
     VkColorSpaceKHR swapChainColorSpace;
-
+    float backBufferClearColor[4];
 };
 
 
