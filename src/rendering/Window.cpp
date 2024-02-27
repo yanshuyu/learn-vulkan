@@ -59,9 +59,8 @@ Window::Window(const WindowDesc& wndDesc)
 
 Window::~Window()
 {
-    if (VKHANDLE_IS_NOT_NULL(m_VKSurface))
-        throw std::runtime_error("Try to destory window when has unrelease surface!");
-    
+    assert(VKHANDLE_IS_NULL(m_VKSurface));
+        
     if (m_GlfwWindow)   
     {  
         glfwDestroyWindow(m_GlfwWindow);

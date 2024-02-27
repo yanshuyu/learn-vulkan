@@ -91,3 +91,37 @@ size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz)
     
     return pos;
 }
+
+
+bool vkutils_fetch_device_feature(const VkPhysicalDeviceFeatures& featureProps, DeviceFeatures feature)
+{
+    switch (feature)
+    {
+    case DeviceFeatures::geometryShader:
+        return featureProps.geometryShader;
+
+     case DeviceFeatures::tessellationShader:
+        return featureProps.tessellationShader;
+
+    case DeviceFeatures::samplerAnisotropy:
+        return featureProps.samplerAnisotropy;
+
+    case DeviceFeatures::textureCompressionETC2:
+        return featureProps.textureCompressionETC2;   
+    
+    default:
+        return false;
+    }
+}
+
+uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, DeviceLimits limit)
+{
+    switch (limit)
+    {
+    case DeviceLimits::maxSamplerAnisotropy:
+        return limitProps.maxSamplerAnisotropy;
+    
+    default:
+        0;
+    }
+}

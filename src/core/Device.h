@@ -19,10 +19,13 @@ class Device
 private:
     VkPhysicalDevice m_vkPhyDevice{VK_NULL_HANDLE};
     QueueFamilyIndices m_DeviceQueueFamilyIndices{};
+    VkPhysicalDeviceProperties m_PhyDeviceProps{};
+    VkPhysicalDeviceFeatures m_PhyDeviceFeatures{};
     VkPhysicalDeviceMemoryProperties m_PhyDeviceMemProps{};
     
+    
     std::vector<std::string> m_DeviceExtendsions{};
-    std::vector<HardwareFeature> m_EnablePhyDeviceFeatures{};
+    std::vector<DeviceFeatures> m_EnablePhyDeviceFeatures{};
 
     VkDevice m_vkDevice{VK_NULL_HANDLE};
     VkQueue m_DeviceQueues[QueueFamilyIndices::MAX_INDEX]; 
@@ -42,7 +45,7 @@ public:
 
     NONE_COPYABLE_NONE_MOVEABLE(Device)
     
-    void SetDeviceFeatureHint(HardwareFeature feature, bool enabled);
+    void SetDeviceFeatureHint(DeviceFeatures feature, bool enabled);
     void SetDeviceExtendsionHint(const char* extendsionName, bool enabled) { vkutils_toggle_extendsion_or_layer_name_active(m_DeviceExtendsions, extendsionName, enabled); }
     void ResetAllHints();
 
@@ -71,6 +74,11 @@ public:
     CommandBuffer* CreateCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, false); }
     CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, true); }
     bool DestroyCommandBuffer(CommandBuffer* pCmdBuf);
+
+    // Features & Limits
+    bool IsFeatureSupport(DeviceFeatures feature) const;
+    bool IsFeatureEnabled(DeviceFeatures feature) const;
+    uint32_t GetDeviceLimit(DeviceLimits limit) const;
 
     // Memory Alloc & Free
     bool AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag, VkDeviceSize size, VkDeviceMemory* pAllocatedMem);

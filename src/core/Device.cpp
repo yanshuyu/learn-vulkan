@@ -28,6 +28,12 @@ Device::Device()
     if (IsValid())
         return true;
 
+    // init device's properties
+    vkGetPhysicalDeviceProperties(phyDevice, &m_PhyDeviceProps);
+    
+    // init device's features
+    vkGetPhysicalDeviceFeatures(phyDevice, &m_PhyDeviceFeatures);
+
     if (!AllHardWareFeatureSupported(phyDevice))
     {
         LOGE("--> Not All Physical Device Features Are Supported!");
@@ -132,7 +138,7 @@ void Device::ResetAllHints()
     m_EnablePhyDeviceFeatures.clear();
 }
 
-void Device::SetDeviceFeatureHint(HardwareFeature feature, bool enabled)
+void Device::SetDeviceFeatureHint(DeviceFeatures feature, bool enabled)
 {
     auto pos = std::find(m_EnablePhyDeviceFeatures.begin(), m_EnablePhyDeviceFeatures.end(), feature);
     if (!enabled && pos != m_EnablePhyDeviceFeatures.end())
@@ -294,32 +300,15 @@ void Device::QueryDeviceMemoryProperties()
 
 bool Device::AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const
 {
-    VkPhysicalDeviceFeatures phyDevicefeatures;
-    vkGetPhysicalDeviceFeatures(phyDevice, &phyDevicefeatures);
+    //VkPhysicalDeviceFeatures phyDevicefeatures;
+    //vkGetPhysicalDeviceFeatures(phyDevice, &phyDevicefeatures);
     for (size_t i = 0; i < m_EnablePhyDeviceFeatures.size(); i++)
     {
-        HardwareFeature feature = m_EnablePhyDeviceFeatures[i];
-        switch (feature)
+        DeviceFeatures feature = m_EnablePhyDeviceFeatures[i];
+        if (!vkutils_fetch_device_feature(m_PhyDeviceFeatures, feature))
         {
-        case HardwareFeature::geometryShader:
-            if (!phyDevicefeatures.geometryShader)
-                return false;
-            break;
-        case HardwareFeature::tessellationShader:
-            if (!phyDevicefeatures.tessellationShader)
-                return false;
-            break;
-        case HardwareFeature::samplerAnisotropy:
-            if (!phyDevicefeatures.samplerAnisotropy)
-                return false;
-            break;
-        case HardwareFeature::textureCompressionETC2:
-            if (!phyDevicefeatures.textureCompressionETC2)
-                return false;
-            break;
-
-        default:
-            break;
+            LOGE("-->Device's feature({}) not support!", feature);
+            return false;
         }
     }
 
@@ -440,19 +429,19 @@ VkPhysicalDeviceFeatures Device::HardwareFeaturesToVkPhysicalDeviceFeatures() co
     VkPhysicalDeviceFeatures phyDeviceFeatures{};
     for (size_t i = 0; i < m_EnablePhyDeviceFeatures.size(); i++)
     {
-        HardwareFeature feature = m_EnablePhyDeviceFeatures[i];
+        DeviceFeatures feature = m_EnablePhyDeviceFeatures[i];
         switch (feature)
         {
-        case HardwareFeature::geometryShader:
+        case DeviceFeatures::geometryShader:
             phyDeviceFeatures.geometryShader = VK_TRUE;
             break;
-        case HardwareFeature::tessellationShader:
+        case DeviceFeatures::tessellationShader:
             phyDeviceFeatures.tessellationShader = VK_TRUE;
             break;
-        case HardwareFeature::samplerAnisotropy:
+        case DeviceFeatures::samplerAnisotropy:
             phyDeviceFeatures.samplerAnisotropy = VK_TRUE;
             break;
-        case HardwareFeature::textureCompressionETC2:
+        case DeviceFeatures::textureCompressionETC2:
             phyDeviceFeatures.textureCompressionETC2 = VK_TRUE;
             break;
 
@@ -583,4 +572,26 @@ bool Device::GetSurfaceCapabilities(Window* window, VkSurfaceCapabilitiesKHR* pR
         return false;
     
     return vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_vkPhyDevice, surface, pResult) == VK_SUCCESS;
+}
+
+
+bool Device::IsFeatureSupport(DeviceFeatures feature) const
+{
+    if (IsValid())
+        return false;
+
+    return vkutils_fetch_device_feature(m_PhyDeviceFeatures, feature);
+}
+
+bool Device::IsFeatureEnabled(DeviceFeatures feature) const
+{
+    return std::find(m_EnablePhyDeviceFeatures.begin(), m_EnablePhyDeviceFeatures.end(), feature) != m_EnablePhyDeviceFeatures.end();
+}
+
+uint32_t Device::GetDeviceLimit(DeviceLimits limit) const
+{
+    if (IsValid())
+        return 0;
+    
+    return vkutils_fetch_device_limit(m_PhyDeviceProps.limits, limit);
 }

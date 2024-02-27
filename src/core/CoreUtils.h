@@ -37,14 +37,23 @@ ClassName operator = (ClassName&&) = delete;
 
 // Types
 
-enum HardwareFeature
+enum DeviceFeatures
 {
-    none,
+    FeatureBegin,
     geometryShader,
     tessellationShader,
     samplerAnisotropy,
     textureCompressionETC2,
     // will add more
+    FeatureEnd,
+};
+
+enum DeviceLimits
+{
+    LimitsBegin,
+    maxSamplerAnisotropy,
+    // will add more
+    LimitsEnd,
 };
 
 
@@ -120,3 +129,7 @@ void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& ar
 
 
 size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz);
+
+bool vkutils_fetch_device_feature(const VkPhysicalDeviceFeatures& featureProps, DeviceFeatures feature);
+
+uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, DeviceLimits limit);

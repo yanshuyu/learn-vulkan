@@ -22,7 +22,7 @@ struct AppDesc
     size_t enabledDeviceExtendsionCount;
     const char** enabledDeviceExtendsionNames;
     size_t enabledDeviceFeatureCount;
-    const HardwareFeature* enabledDeviceFeatures;
+    const DeviceFeatures* enabledDeviceFeatures;
     VkQueueFlags enableQueueOperation;
     VkFormat swapChainColorFormat;
     VkColorSpaceKHR swapChainColorSpace;
