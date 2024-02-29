@@ -126,6 +126,11 @@ VkImageLayout vkutils_get_render_pass_attachment_best_input_layout(VkFormat fmt)
 
 VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt);
 
+VkImageType vkutils_get_image_type_form_extents(VkExtent3D extents);
+
+uint32_t vkutils_get_mip_level_count_from_extents(VkExtent3D extents);
+
+VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt);
 
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& arr, const char* name, bool enabled);
 

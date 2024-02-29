@@ -3,15 +3,14 @@
 #include<string>
 #include<vector>
 #include<utility>
-#include"core\QueueFamilyIndices.h"
 #include"core\CoreUtils.h"
+#include"rendering\Window.h"
+#include"core\QueueFamilyIndices.h"
 #include"rendering\ObjectPool.h"
-
-
-class CommandBuffer;
-class Buffer;
-class Fence;
-class Window;
+#include"core\CommandBuffer.h"
+#include"core\Buffer.h"
+#include"core\Image.h"
+#include"core\Fence.h"
 
 
 class Device
@@ -33,11 +32,11 @@ private:
     //VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
 
 private:
-    std::vector<Buffer*> _BuffersRes{};
     std::vector<Fence*> _Fences{};
 
     ObjectPool<CommandBuffer> _CmdBufPool{};
     ObjectPool<Buffer> _BufferPool{};
+    ObjectPool<Image> _ImagePool{};
 
 public:
     Device();
@@ -81,14 +80,25 @@ public:
     uint32_t GetDeviceLimit(DeviceLimits limit) const;
 
     // Memory Alloc & Free
-    bool AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag, VkDeviceSize size, VkDeviceMemory* pAllocatedMem);
+    bool AllocMemory(const VkMemoryRequirements& memReq, VkMemoryPropertyFlags memPropFlag, VkDeviceMemory* pAllocatedMem);
     void FreeMemory(VkDeviceMemory mem);
 
     // Resource Create & Destroy
     
     Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
-    bool DestroyBuffer(Buffer* pBuffer);
-    
+    void DestroyBuffer(Buffer* pBuffer);
+
+    Image *CreateImage(VkFormat fmt,
+                       uint32_t width,
+                       uint32_t height,
+                       uint32_t depth,
+                       VkImageUsageFlags usage,
+                       VkMemoryPropertyFlags memProp,
+                       bool genMipMaps = false,
+                       uint32_t layerCnt = 1,
+                       uint32_t sampleCnt = 1,
+                       bool linearTiling = false);
+    void DestroyImage(Image* pImage);
 
     Fence* CreateFence(bool signaled);
     bool DestroyFence(Fence* pFence);

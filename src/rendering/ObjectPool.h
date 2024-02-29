@@ -24,6 +24,8 @@ public:
     {
     }
 
+    ~ObjectPool() { CleanUp(); }
+
     T* Get()
     {
         T* obj{nullptr};
@@ -60,6 +62,15 @@ public:
             _releaseOp(obj);
         else
             DefaultDelect(obj);
+    }
+
+    void CleanUp()
+    {   
+        while (_freeObjs.size() > 0)
+        {
+            Release(_freeObjs.top());
+            _freeObjs.pop();   
+        }
     }
 
     size_t FreeObjectCount() const { return _freeObjs.size(); }

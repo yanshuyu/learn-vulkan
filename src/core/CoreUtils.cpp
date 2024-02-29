@@ -26,6 +26,41 @@ VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt
     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 }
 
+VkImageType vkutils_get_image_type_form_extents(VkExtent3D extents)
+{
+    if (extents.depth > 1)
+        return VK_IMAGE_TYPE_3D;
+    
+    if (extents.height > 1)
+        return VK_IMAGE_TYPE_2D;
+    
+    return VK_IMAGE_TYPE_1D;
+}
+
+
+uint32_t vkutils_get_mip_level_count_from_extents(VkExtent3D extents)
+{
+    uint32_t x = std::max(extents.width, extents.height);
+    x = std::log2(x);
+    return x + 1;
+}
+
+
+VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt)
+{
+    VkSampleCountFlagBits sampleCntBits[] = {
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_SAMPLE_COUNT_2_BIT,
+        VK_SAMPLE_COUNT_4_BIT,
+        VK_SAMPLE_COUNT_8_BIT,
+        VK_SAMPLE_COUNT_16_BIT,
+        VK_SAMPLE_COUNT_32_BIT,
+        VK_SAMPLE_COUNT_64_BIT,
+    };
+
+    return sampleCntBits[(uint32_t)std::log2(sampleCnt)];
+}
+
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string> &arr, const char *name, bool enabled)
 {
     auto pos = std::find(arr.begin(), arr.end(), name);

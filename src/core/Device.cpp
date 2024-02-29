@@ -4,11 +4,7 @@
 #include<map>
 #include<utility>
 #include<set>
-#include"core\CoreUtils.h"
-#include"core\CommandBuffer.h"
-#include"core\Buffer.h"
-#include"core\Fence.h"
-#include"rendering\Window.h"
+
 
 
 Device::Device()
@@ -68,6 +64,10 @@ void Device::Release()
         return;
 
     WaitIdle();
+
+    _CmdBufPool.CleanUp();
+    _BufferPool.CleanUp();
+    _ImagePool.CleanUp();
 
     // destory command pool will destroy command buffers allocate from it
     std::set<VkCommandPool> compactCmdPools;
@@ -315,7 +315,7 @@ bool Device::AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const
     return true;
 }
 
-bool Device::AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag, VkDeviceSize size, VkDeviceMemory* pAllocatedMem)
+bool Device::AllocMemory(const VkMemoryRequirements& memReq, VkMemoryPropertyFlags memPropFlag, VkDeviceMemory* pAllocatedMem)
 {
     if (!IsValid())
         return false;
@@ -326,7 +326,7 @@ bool Device::AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag
     size_t memTypeIdx = -1;
     for (size_t i = 0; i < m_PhyDeviceMemProps.memoryTypeCount; i++)
     {
-        if (memTypeBits & (1 << i)  > 0 // avaliable memory type index
+        if (memReq.memoryTypeBits & (1 << i)  > 0 // avaliable memory type index
             && (m_PhyDeviceMemProps.memoryTypes[i].propertyFlags & memPropFlag) == memPropFlag) // avaliable memory properties
         {
             memTypeIdx = i;
@@ -341,7 +341,7 @@ bool Device::AllocMemory(uint32_t memTypeBits, VkMemoryPropertyFlags memPropFlag
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.pNext = nullptr;
     allocInfo.memoryTypeIndex = memTypeIdx;
-    allocInfo.allocationSize = size;
+    allocInfo.allocationSize = memReq.size;
 
     VkResult result = vkAllocateMemory(m_vkDevice, &allocInfo, nullptr, pAllocatedMem);
     if (result != VK_SUCCESS)
@@ -368,36 +368,69 @@ Buffer* Device::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemo
     }
 
     BufferDesc desc{};
-    desc.device = this;
     desc.size = size;
     desc.usage = usage;
     desc.memFlags = memProp;
     Buffer *newBuffer = _BufferPool.Get();
-    if (!newBuffer->Create(desc))
+    if (!newBuffer->Create(this, desc))
     {
         newBuffer->Reset();
         _BufferPool.Return(newBuffer);
         return nullptr;
     }
 
-    _BuffersRes.push_back(newBuffer);
-
     return newBuffer;
 }
 
-bool Device::DestroyBuffer(Buffer* pBuffer)
+void Device::DestroyBuffer(Buffer* pBuffer)
 {
-    auto pos = std::find(_BuffersRes.begin(), _BuffersRes.end(), pBuffer);
-    if (pos == _BuffersRes.end())
-        return false;
-    
-    _BuffersRes.erase(pos);
     pBuffer->Release();
     _BufferPool.Return(pBuffer);
-
-    return true;
 }
 
+Image *Device::CreateImage(VkFormat fmt,
+                           uint32_t width,
+                           uint32_t height,
+                           uint32_t depth,
+                           VkImageUsageFlags usage,
+                           VkMemoryPropertyFlags memProp,
+                           bool genMipMaps,
+                           uint32_t layerCnt,
+                           uint32_t sampleCnt,
+                           bool linearTiling)
+{
+    if (!IsValid())
+    {
+        LOGW("Try to create Image with invalid Device({})!", (void *)this);
+        return nullptr;
+    }
+
+    ImageDesc desc{};
+    desc.format = fmt;
+    desc.extents = {width, height, depth};
+    desc.layers = layerCnt;
+    desc.sampleCount = sampleCnt;
+    desc.generalMipMaps = genMipMaps;
+    desc.linearTiling = linearTiling;
+    desc.memFlags = memProp;
+    desc.usageFlags = usage;
+
+    Image* pImage = _ImagePool.Get();
+    if (!pImage->Create(this, desc))
+    {   
+        pImage->Reset();
+        _ImagePool.Return(pImage);
+        return nullptr;
+    }
+
+    return pImage;
+}
+
+void Device::DestroyImage(Image *pImage)
+{
+    pImage->Release();
+    _ImagePool.Return(pImage);
+}
 
 Fence* Device::CreateFence(bool signaled)
 {

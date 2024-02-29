@@ -250,7 +250,7 @@ bool ApiSample::CreateSwapChainFrameBuffers()
 
     VkMemoryRequirements depthBufferMemReq{};
     vkGetImageMemoryRequirements(m_pDevice->GetHandle(), m_DepthBuffer, &depthBufferMemReq);
-    if (!m_pDevice->AllocMemory(depthBufferMemReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthBufferMemReq.size, &m_DepthBufferMemory))
+    if (!m_pDevice->AllocMemory(depthBufferMemReq, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &m_DepthBufferMemory))
     {
         LOGE("-->ApiSample: failed to alloc device({}) memory!", (void*)m_pDevice.get());
         return false;
