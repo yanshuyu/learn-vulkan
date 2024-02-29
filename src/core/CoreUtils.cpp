@@ -121,7 +121,35 @@ uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, De
     case DeviceLimits::maxSamplerAnisotropy:
         return limitProps.maxSamplerAnisotropy;
     
+    case DeviceLimits::maxFrameBufferColorSampleCount:
+        return vkutils_fetch_max_sample_count(limitProps.framebufferColorSampleCounts);
+    
+    case DeviceLimits::maxFrameBufferDepthSampleCount:
+        return vkutils_fetch_max_sample_count(limitProps.framebufferDepthSampleCounts);
+    
     default:
         0;
     }
+}
+
+
+uint32_t vkutils_fetch_max_sample_count(VkSampleCountFlags sampleCountFlags)
+{
+    VkSampleCountFlagBits sampleCountBits[] = {
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_SAMPLE_COUNT_2_BIT,
+        VK_SAMPLE_COUNT_4_BIT,
+        VK_SAMPLE_COUNT_8_BIT,
+        VK_SAMPLE_COUNT_16_BIT,
+        VK_SAMPLE_COUNT_32_BIT,
+        VK_SAMPLE_COUNT_64_BIT,
+    };
+
+    for (size_t i = 6; i >= 0; i--)
+    {
+        if (sampleCountFlags & sampleCountBits[i])
+            return std::pow(2, i);
+    }
+    
+    return 1;
 }

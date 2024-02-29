@@ -52,6 +52,8 @@ enum DeviceLimits
 {
     LimitsBegin,
     maxSamplerAnisotropy,
+    maxFrameBufferColorSampleCount,
+    maxFrameBufferDepthSampleCount,
     // will add more
     LimitsEnd,
 };
@@ -133,3 +135,5 @@ size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz);
 bool vkutils_fetch_device_feature(const VkPhysicalDeviceFeatures& featureProps, DeviceFeatures feature);
 
 uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, DeviceLimits limit);
+
+uint32_t vkutils_fetch_max_sample_count(VkSampleCountFlags sampleCountFlags);
