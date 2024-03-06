@@ -2,15 +2,11 @@
 #include<algorithm>
 #include<functional>
 #include<iostream>
+#include"core\Device.h"
 
 GraphicPipeline::GraphicPipeline()
 {
-    m_RSCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    m_DSCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     ResetDefaultStates();
-    m_Pipeline = VK_NULL_HANDLE;
-    m_PipelineLayout = VK_NULL_HANDLE;
-    m_Device = VK_NULL_HANDLE;
 }
 
 GraphicPipeline::~GraphicPipeline()
@@ -79,6 +75,24 @@ void GraphicPipeline::VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D s
     m_RSCreateInfo.depthBiasClamp = clamp;
  }
 
+ void GraphicPipeline::DSSetStencilOp(uint32_t refVal, uint32_t readMask,
+                                      uint32_t writeMask,
+                                      VkCompareOp cmp,
+                                      VkStencilOp passOp,
+                                      VkStencilOp depthFailOp,
+                                      VkStencilOp failOp)
+ {
+    VkStencilOpState stencilState{};
+    stencilState.reference = refVal;
+    stencilState.compareMask = readMask;
+    stencilState.writeMask = writeMask;
+    stencilState.compareOp = cmp;
+    stencilState.passOp = passOp;
+    stencilState.depthFailOp = depthFailOp;
+    stencilState.failOp = failOp;
+    m_DSCreateInfo.front = m_DSCreateInfo.back = stencilState;
+
+ }
 
  void GraphicPipeline::ResetDefaultStates()
  {
@@ -238,13 +252,13 @@ int GraphicPipeline::MSGetSampleCount() const
 
 
 
-bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t subPass, bool forceCreate)
+bool GraphicPipeline::Create(Device* pDevice, VkRenderPass renderPass, uint32_t subPass)
 {
-    if (device == VK_NULL_HANDLE)
+    if (pDevice == nullptr || pDevice->IsValid())
         return false;
 
-    if (forceCreate && IsCreate())
-        Release();
+    if (IsCreate())
+        return true;
     
     VkPipelineVertexInputStateCreateInfo viInfo{};
     viInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -256,7 +270,6 @@ bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t 
     viInfo.pVertexAttributeDescriptions = m_VIAttrsDesc.data();
 
     VkPipelineInputAssemblyStateCreateInfo iaInfo{};
-
     iaInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     iaInfo.flags = 0;
     iaInfo.pNext = nullptr;;
@@ -314,14 +327,10 @@ bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t 
         shaderStageCreateInfos.push_back(shaderStageCreateInfo);
     }
 
-
-    vector<VkDescriptorSetLayout> descriptorSetLayouts{};
-    vector<std::unique_ptr<VkDescriptorSetLayout, std::function<void(VkDescriptorSetLayout*)>>> descriptorSetLayoutsAutoReleaseTemp{};
-    descriptorSetLayouts.reserve(m_DescriptorSetLayoutsBinding.size());
-    descriptorSetLayoutsAutoReleaseTemp.reserve(m_DescriptorSetLayoutsBinding.size());
-    for (size_t i = 0; i < m_DescriptorSetLayoutsBinding.size(); i++)
+    m_DescriptorSetLayouts.reserve(m_DescriptorSetLayoutsBinding.size());
+    for (auto&& setBindings : m_DescriptorSetLayoutsBinding)
     {
-        auto& descriptorSetBindings = m_DescriptorSetLayoutsBinding[i];
+        auto& descriptorSetBindings = setBindings.second;
         VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
         descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         descriptorSetLayoutCreateInfo.flags = 0;
@@ -329,23 +338,20 @@ bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t 
         descriptorSetLayoutCreateInfo.bindingCount = descriptorSetBindings.size();
         descriptorSetLayoutCreateInfo.pBindings = descriptorSetBindings.data();
         VkDescriptorSetLayout setLayout = VK_NULL_HANDLE;
-        VkResult result = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, nullptr, &setLayout);
+        VkResult result = vkCreateDescriptorSetLayout(pDevice->GetHandle(), &descriptorSetLayoutCreateInfo, nullptr, &setLayout);
         if( result != VK_SUCCESS)
         {
+            CleanDescriptorSetLayouts(pDevice->GetHandle());
             std::cout << "-->Create Descriptor Set Layout Failed, Error: " << result << std::endl;
             return false;
         }
 
-        descriptorSetLayouts.push_back(setLayout);
-        descriptorSetLayoutsAutoReleaseTemp.emplace_back(&descriptorSetLayouts[i], [=](VkDescriptorSetLayout* pSetLayout)
-        {
-            if (*pSetLayout != VK_NULL_HANDLE)
-            { 
-                vkDestroyDescriptorSetLayout(device, *pSetLayout, nullptr);
-                *pSetLayout = VK_NULL_HANDLE;
-            };
-        });
+        m_DescriptorSetLayouts.insert(std::make_pair(setBindings.first, setLayout));
     }
+
+    std::vector<VkDescriptorSetLayout> flatSetLayouts(m_DescriptorSetLayouts.size(), VK_NULL_HANDLE);
+    std::transform(m_DescriptorSetLayouts.begin(), m_DescriptorSetLayouts.end(), flatSetLayouts.begin(), [](const decltype(m_DescriptorSetLayouts)::value_type &x)
+                   { return x.second; });
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -353,13 +359,14 @@ bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t 
     pipelineLayoutCreateInfo.pNext = nullptr;
     pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
     pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
-    pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayouts.size();
-    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
+    pipelineLayoutCreateInfo.setLayoutCount = m_DescriptorSetLayouts.size();
+    pipelineLayoutCreateInfo.pSetLayouts = flatSetLayouts.data();
 
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-    VkResult result = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
+    VkResult result = vkCreatePipelineLayout(pDevice->GetHandle(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout);
     if (result != VK_SUCCESS)
     {
+        CleanDescriptorSetLayouts(pDevice->GetHandle());
          std::cout << "-->Create Graphics Pipeline Layout Failed, Error: " << result << std::endl;
          return false;
     }
@@ -392,21 +399,19 @@ bool GraphicPipeline::Create(VkDevice device, VkRenderPass renderPass, uint32_t 
     
 
     VkPipeline createdPipeline = VK_NULL_HANDLE;
-    result = vkCreateGraphicsPipelines(device, nullptr, 1, &createInfo, nullptr, &createdPipeline);
+    result = vkCreateGraphicsPipelines(pDevice->GetHandle(), nullptr, 1, &createInfo, nullptr, &createdPipeline);
     if (result != VK_SUCCESS)
     {
+        CleanDescriptorSetLayouts(pDevice->GetHandle());
         std::cout << "-->Create Graphics Pipeline Failed, Error: " << result << std::endl;
+        return false;
     }
 
-    
-    if (result == VK_SUCCESS)
-    {
-        m_Device = device;
-        m_Pipeline = createdPipeline;
-        m_PipelineLayout = pipelineLayout;
-    }
+    m_pDevice = pDevice;
+    m_Pipeline = createdPipeline;
+    m_PipelineLayout = pipelineLayout;
 
-    return IsCreate();
+    return true;
 }
 
 
@@ -431,12 +436,12 @@ void GraphicPipeline::SetShader(VkShaderModule shaderMoule, VkShaderStageFlagBit
 }
 
 
-void GraphicPipeline::SRBindResource(uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages, int layoutSetIdx)
+void GraphicPipeline::SRBindResource(uint32_t setIdx, uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages)
 {
-    if (layoutSetIdx >= m_DescriptorSetLayoutsBinding.size())
-        m_DescriptorSetLayoutsBinding.resize(layoutSetIdx + 1);
+    if (m_DescriptorSetLayoutsBinding.find(setIdx) == m_DescriptorSetLayoutsBinding.end())
+        m_DescriptorSetLayoutsBinding.insert(std::make_pair(setIdx, std::vector<VkDescriptorSetLayoutBinding>{}));
     
-    auto& descriptorSetBindings = m_DescriptorSetLayoutsBinding[layoutSetIdx];
+    auto& descriptorSetBindings = m_DescriptorSetLayoutsBinding[setIdx];
     auto pos = std::find_if(descriptorSetBindings.begin(), descriptorSetBindings.end(), [=](const VkDescriptorSetLayoutBinding &binding)
                             { return binding.binding == bindingLocation && binding.descriptorType == resourceType; });
     if (pos == descriptorSetBindings.end())
@@ -451,6 +456,7 @@ void GraphicPipeline::SRBindResource(uint32_t bindingLocation, VkDescriptorType 
     }
     else
     {
+        pos->descriptorType = resourceType;
         pos->descriptorCount = resourceArrayElementCnt;
         pos->stageFlags = accessStages;
     }
@@ -462,11 +468,30 @@ void GraphicPipeline::Release()
 {
     if (IsCreate())
     {
-        vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
-        vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
+        CleanDescriptorSetLayouts(m_pDevice->GetHandle());
+        vkDestroyPipeline(m_pDevice->GetHandle(), m_Pipeline, nullptr);
         ResetDefaultStates();
-        m_Device = VK_NULL_HANDLE;
+        m_pDevice = nullptr;
         m_Pipeline = VK_NULL_HANDLE;
-        m_PipelineLayout = VK_NULL_HANDLE;
     }
+}
+
+
+void GraphicPipeline::CleanDescriptorSetLayouts(VkDevice device)
+{
+    if (VKHANDLE_IS_NULL(device))
+        return;
+
+    if ( VKHANDLE_IS_NOT_NULL(m_PipelineLayout))
+        vkDestroyPipelineLayout(device, m_PipelineLayout, nullptr);
+
+    for (auto &&setLayout : m_DescriptorSetLayouts)
+    {
+        if (VKHANDLE_IS_NOT_NULL(setLayout.second))
+            vkDestroyDescriptorSetLayout(device, setLayout.second, nullptr);
+    }
+
+    m_DescriptorSetLayouts.clear();
+    VKHANDLE_SET_NULL(m_PipelineLayout);
+
 }

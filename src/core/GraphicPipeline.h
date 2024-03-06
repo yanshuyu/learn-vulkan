@@ -1,10 +1,15 @@
 #pragma once
 #include<vulkan\vulkan.h>
 #include<vector>
+#include<unordered_map>
 #include<numeric>
 #include"core\Shader.h"
+#include"core\CoreUtils.h"
+
 
 using std::vector;
+
+class Device;
 
 class GraphicPipeline 
 {
@@ -24,18 +29,18 @@ private:
     vector<VkVertexInputAttributeDescription> m_VIAttrsDesc{};
 
     // input assembly
-    VkPrimitiveTopology m_IATopology;
-    bool m_IAPrimitiveRestart;;
+    VkPrimitiveTopology m_IATopology{VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST};
+    bool m_IAPrimitiveRestart{false};
 
     // viewport & scissor
     VkViewport m_Viewport{};
     VkRect2D m_Scissor{};
 
     // rasterizer
-    VkPipelineRasterizationStateCreateInfo m_RSCreateInfo{};
+    VkPipelineRasterizationStateCreateInfo m_RSCreateInfo{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
 
     // depth & stencil test
-    VkPipelineDepthStencilStateCreateInfo m_DSCreateInfo {};
+    VkPipelineDepthStencilStateCreateInfo m_DSCreateInfo {VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
     
     // framebuffer blending
     vector<VkPipelineColorBlendAttachmentState> m_FBAttchmentStates {};
@@ -51,12 +56,14 @@ private:
     vector<ShaderStageInfo> m_ShaderInfo{};
 
     //pipeline access shader resource
-    vector<vector<VkDescriptorSetLayoutBinding>> m_DescriptorSetLayoutsBinding{};
+    std::unordered_map<int, std::vector<VkDescriptorSetLayoutBinding>> m_DescriptorSetLayoutsBinding{};
 
     // pipeline
-    VkPipeline m_Pipeline;
-    VkPipelineLayout m_PipelineLayout;
-    VkDevice m_Device;
+    VkPipeline m_Pipeline{VK_NULL_HANDLE};
+    VkPipelineLayout m_PipelineLayout{VK_NULL_HANDLE};
+    std::unordered_map<int, VkDescriptorSetLayout> m_DescriptorSetLayouts{};
+    
+    Device* m_pDevice{nullptr};
 
 public:
     GraphicPipeline();
@@ -113,14 +120,19 @@ public:
     void DSEnableStencilTest() { m_DSCreateInfo.stencilTestEnable = VK_TRUE; }
     void DSDisableStenilTest() { m_DSCreateInfo.stencilTestEnable = VK_FALSE; }
     bool DSGetStencilTestEnabled() const { return m_DSCreateInfo.stencilTestEnable; }
-    void DSSetStencilOp(VkStencilOpState  stencilOp) { m_DSCreateInfo.front = m_DSCreateInfo.back = stencilOp; }
+    void DSSetStencilOp(uint32_t refVal, uint32_t readMask = std::numeric_limits<uint32_t>::max(),
+                        uint32_t writeMask = std::numeric_limits<uint32_t>::max(),
+                        VkCompareOp cmp = VK_COMPARE_OP_EQUAL,
+                        VkStencilOp passOp = VK_STENCIL_OP_REPLACE,
+                        VkStencilOp depthFailOP = VK_STENCIL_OP_KEEP,
+                        VkStencilOp failp = VK_STENCIL_OP_KEEP);
     VkStencilOpState DSGetStencilOp() const { return m_DSCreateInfo.front; }
 
     // frame buffer color blending
     void FBEnableBlend(int attachmentIdx);
     void FBDisableBlend(int attachmentIdx);
     bool FBGetBlendEnabled(int attachmentIdx) const;
-    void FBSetColorBlendOp(int attachmentIdx, VkBlendFactor srcFactor, VkBlendFactor dstFactor, VkBlendOp op, VkColorComponentFlags colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT);
+    void FBSetColorBlendOp(int attachmentIdx, VkBlendFactor srcFactor, VkBlendFactor dstFactor, VkBlendOp op, VkColorComponentFlags colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT);
     bool FBGetColorBlendOp(int attachmentIdx, VkBlendFactor& srcFactor, VkBlendFactor& dstFactor, VkBlendOp& op, VkColorComponentFlags& colorWriteMask) const;
     void FBSetAlphaBlendOp(int attachmentIdx, VkBlendFactor srcFactor, VkBlendFactor dstFactor, VkBlendOp op);
     bool FBGetAlphaBlendOp(int attachmentIdx, VkBlendFactor& srcFactor, VkBlendFactor& dstFactor, VkBlendOp& op) const;
@@ -142,10 +154,14 @@ public:
     void SetShader(VkShaderModule shaderMoule, VkShaderStageFlagBits shaderStage, const char* entryName);
 
     // Shader Resource
-    void SRBindResource(uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages, int layoutSetIdx = 0);
+    void SRBindResource(uint32_t setIdx, uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages);
+    VkDescriptorSetLayout SRGetSetLayout(uint32_t setIdx) const { return m_DescriptorSetLayouts.at(setIdx); }
+    bool SRHasSetLayout(uint32_t setIdx) const { return m_DescriptorSetLayouts.find(setIdx) != m_DescriptorSetLayouts.end(); }
+    VkPipelineLayout SRGetPipelineLayout() const { return m_PipelineLayout; }
 
-    bool Create(VkDevice device, VkRenderPass renderPass, uint32_t subPas = 0, bool forceCreate = false);
+    bool Create(Device* pDevice, VkRenderPass renderPass, uint32_t subPas = 0);
     bool IsCreate() const { return m_Pipeline != VK_NULL_HANDLE; }
+    VkPipeline GetHandle() const { return m_Pipeline; }
     void Release();
 
 private:
@@ -157,7 +173,7 @@ private:
         bs.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
         bs.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;;
         bs.colorBlendOp = VK_BLEND_OP_ADD;;
-        bs.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
+        bs.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
         bs.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
         bs.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         bs.alphaBlendOp = VK_BLEND_OP_ADD;
@@ -202,4 +218,6 @@ private:
 
         return ds;
     }
+
+    void CleanDescriptorSetLayouts(VkDevice device);
 };
