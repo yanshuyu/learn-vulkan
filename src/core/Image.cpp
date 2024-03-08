@@ -13,7 +13,7 @@ bool Image::Create(Device *pDevice, const ImageDesc &desc)
         return false;
     }
 
-    bool canMap = (desc.memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) > 0;
+    bool canMap = desc.linearTiling && (desc.memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) > 0; // only linear tiling image can access by host directly
     VkImageCreateInfo createInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     createInfo.format = desc.format;
     createInfo.imageType = vkutils_get_image_type_form_extents(desc.extents);

@@ -53,7 +53,7 @@ public:
     bool DestroyView(VkImageView view);
     bool IsValid() const { return m_pDevice != nullptr && VKHANDLE_IS_NOT_NULL(m_vkImage) && VKHANDLE_IS_NOT_NULL(m_ImageMem); }
 
-    bool CanMap() const override { return IsValid() && IMapAccessMemory::CanMap(); }
+    bool CanMap() const override { return IsValid() && IMapAccessMemory::CanMap() && m_Desc.linearTiling; }
     Device* GetDevice() const { return m_pDevice; }
     VkDevice GetDeviceHandle() const override;
     VkImage GetHandle() const { return m_vkImage; }
