@@ -628,3 +628,15 @@ uint32_t Device::GetDeviceLimit(DeviceLimits limit) const
     
     return vkutils_fetch_device_limit(m_PhyDeviceProps.limits, limit);
 }
+
+
+bool Device::IsFormatFeatureSupport(VkFormat fmt, VkFormatFeatureFlagBits fmtFeature, bool linearTiling) const
+{
+    if (IsValid())
+        return false;
+
+    VkFormatProperties fmtProps{};
+    vkGetPhysicalDeviceFormatProperties(m_vkPhyDevice, fmt, &fmtProps);
+    VkFormatFeatureFlags deviceFmtFeatures = linearTiling ? fmtProps.linearTilingFeatures : fmtProps.optimalTilingFeatures;
+    return deviceFmtFeatures & fmtFeature;
+}

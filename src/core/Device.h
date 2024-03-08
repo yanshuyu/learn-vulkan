@@ -77,6 +77,7 @@ public:
     // Features & Limits
     bool IsFeatureSupport(DeviceFeatures feature) const;
     bool IsFeatureEnabled(DeviceFeatures feature) const;
+    bool IsFormatFeatureSupport(VkFormat fmt, VkFormatFeatureFlagBits fmtFeature, bool linearTiling) const;
     uint32_t GetDeviceLimit(DeviceLimits limit) const;
 
     // Memory Alloc & Free
