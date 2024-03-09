@@ -3,6 +3,8 @@
 #include"core\CoreUtils.h"
 
 class Device;
+class Buffer;
+class Fence;
 
 class CommandBuffer
 {
@@ -26,7 +28,7 @@ private:
 
     void SetUp(Device* pDevice, VkCommandPool cmdPool, VkQueue exeQueue, VkCommandBuffer cmdBuf, bool isTemp);
     void ClenUp();
-
+    bool Execute(Fence* fence);
 public:
     CommandBuffer(){};
     ~CommandBuffer();
@@ -43,8 +45,19 @@ public:
     bool CanExecute() const { return IsVaild() && !_temprary && _state == State::Executable; }
     bool Begin();
     bool End();
-    bool Execute();
+    bool ExecuteSync() { return Execute(nullptr); }
+    bool ExecuteAsync(Fence* fence) { return Execute(fence); }
     bool Reset();
+
+    bool UpdateBuffer(Buffer *buf,
+                      size_t bufOffset,
+                      uint8_t *data,
+                      size_t dataOffset,
+                      size_t dataSz,
+                      VkPipelineStageFlags waitStageMask,
+                      VkAccessFlags waitAccessMask,
+                      VkPipelineStageFlags signalStageMask,
+                      VkAccessFlags signalAccessMask);
 };
 
 

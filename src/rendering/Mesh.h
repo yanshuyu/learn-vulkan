@@ -5,7 +5,9 @@
 #include"core\CoreUtils.h"
 
 class Buffer;
+class CommandBuffer;
 class Device;
+
 
 class Mesh
 {
@@ -21,6 +23,8 @@ public:
         MaxAttribute,
     };
 
+    typedef uint32_t index_t;
+
 private:
     std::vector<glm::vec3> _positions{};
     std::vector<glm::vec3> _normals{};
@@ -28,7 +32,7 @@ private:
     std::vector<glm::vec4> _colors{};
     std::vector<glm::vec2> _uv0{};
     std::vector<glm::vec2> _uv1{};
-    std::vector<uint32_t> _indices{};
+    std::vector<index_t> _indices{};
     VkPrimitiveTopology _topology{VK_PRIMITIVE_TOPOLOGY_MAX_ENUM};
 
     bool _readWriteEnable{false};
@@ -39,11 +43,12 @@ private:
     size_t _attributeCnt[MaxAttribute + 1] {};
     std::bitset<MaxAttribute+1> _attributeDirty{0};
 private:
-    void _set_attribute_dirty(Attribute attr) { _attributeDirty.set(attr, true); }
-    void _unset_attribute_dirty(Attribute attr) { _attributeDirty.set(attr, false); }
-    bool _is_attribute_dirty(Attribute attr) { return _attributeDirty.test(attr); }
-    Buffer* _gen_attribute_buffer(Attribute attr, size_t size);
-    void _update_buffer(Buffer* buf, void* data, size_t size);
+    void _set_attr_dirty(Attribute attr) { _attributeDirty.set(attr, true); }
+    void _unset_attr_dirty(Attribute attr) { _attributeDirty.set(attr, false); }
+    bool _is_attr_dirty(Attribute attr) { return _attributeDirty.test(attr); }
+    size_t _get_attr_byte_size(Attribute attr);
+    Buffer* _gen_buffer(Attribute attr, size_t size);
+    void _update_buffer(CommandBuffer* cmd, Attribute attr, uint8_t* data, size_t size);
 public:
     Mesh(Device* pDevice);
     ~Mesh();

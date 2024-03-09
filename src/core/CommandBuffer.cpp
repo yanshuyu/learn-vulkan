@@ -1,6 +1,8 @@
-#include"core\CommandBuffer.h"
 #include<iostream>
-
+#include"core\CommandBuffer.h"
+#include"core\Buffer.h"
+#include"core\Device.h"
+#include"core\Fence.h"
 
 CommandBuffer::~CommandBuffer()
 {
@@ -86,7 +88,7 @@ bool CommandBuffer::End()
     return result == VK_SUCCESS;
 }
 
-bool CommandBuffer::Execute()
+bool CommandBuffer::Execute(Fence* fence)
 {
     if (!_temprary)
     {
@@ -108,14 +110,16 @@ bool CommandBuffer::Execute()
     submitInfo.signalSemaphoreCount = 0;
     submitInfo.pSignalSemaphores = nullptr;
     
-    VkResult result = vkQueueSubmit(_vkQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    VkResult result = vkQueueSubmit(_vkQueue, 1, &submitInfo, fence ? fence->GetHandle() : VK_NULL_HANDLE);
     if (result != VK_SUCCESS)
     {
         LOGE("Command Buffer({}) Execut Error: {}", (void*)this, result);
         return false;
     }
 
-    vkQueueWaitIdle(_vkQueue);
+    if (!fence)
+        vkQueueWaitIdle(_vkQueue);
+    
     return true;
 }
 
@@ -132,5 +136,54 @@ bool CommandBuffer::Reset()
     }
 
     _state = State::Initial;
+    return true;
+}
+
+bool CommandBuffer::UpdateBuffer(Buffer *buf,
+                                 size_t bufOffset,
+                                 uint8_t *data,
+                                 size_t dataOffset,
+                                 size_t dataSz,
+                                 VkPipelineStageFlags waitStageMask,
+                                 VkAccessFlags waitAccessMask,
+                                 VkPipelineStageFlags signalStageMask,
+                                 VkAccessFlags signalAccessMask)
+{
+    if (_state != State::Recording)
+        return false;
+
+    // create a staging buffer as buffer copy transffer source
+    Buffer *stageBuf = _pDevice->CreateBuffer(dataSz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    // copy cpu data to staging buffer
+    uint8_t *mapedData = stageBuf->Map();
+    memcpy(mapedData, data + dataOffset, dataSz);
+    stageBuf->UnMap();
+
+    // insert a buffer memory barrier to ensure transffer write wait for prev read finish
+    VkBufferMemoryBarrier mb{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    mb.buffer = buf->GetHandle();
+    mb.offset = bufOffset;
+    mb.size = dataSz;
+    mb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    mb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    mb.srcAccessMask = waitAccessMask;
+    mb.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    vkCmdPipelineBarrier(GetHandle(), waitStageMask, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1, &mb, 0, nullptr);
+
+    // transffer staging buffer to dst buffer
+    VkBufferCopy copyArea{};
+    copyArea.srcOffset = bufOffset;
+    copyArea.dstOffset = 0;
+    copyArea.size = dataSz;
+    vkCmdCopyBuffer(GetHandle(), stageBuf->GetHandle(), buf->GetHandle(), 1, &copyArea);
+
+    // insert a buffer memory barrier to ensure next read wait for transffer write finish
+    mb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+    mb.dstAccessMask = signalAccessMask;
+    vkCmdPipelineBarrier(GetHandle(), VK_PIPELINE_STAGE_TRANSFER_BIT, signalStageMask, 0, 0, nullptr, 1, &mb, 0, nullptr);
+
+    // destroy staging buffer
+    _pDevice->DestroyBuffer(stageBuf);
+
     return true;
 }
