@@ -49,10 +49,10 @@ public:
     bool ExecuteAsync(Fence* fence) { return Execute(fence); }
     bool Reset();
 
-    bool UpdateBuffer(Buffer *buf,
-                      size_t bufOffset,
-                      uint8_t *data,
-                      size_t dataOffset,
+    bool CopyBuffer(const Buffer* src,
+                      size_t srcOffset,
+                      Buffer* dst,
+                      size_t dstOffset,
                       size_t dataSz,
                       VkPipelineStageFlags waitStageMask,
                       VkAccessFlags waitAccessMask,

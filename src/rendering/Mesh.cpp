@@ -1,10 +1,12 @@
 #include"Mesh.h"
+#include"core\Fence.h"
 #include"core\Buffer.h"
 #include"core\Device.h"
 #include"core\CommandBuffer.h"
 
-Mesh::Mesh(Device* pDevice)
+Mesh::Mesh(Device* pDevice, bool readWriteEnable)
 : _pDevice(pDevice)
+, _readWriteEnable(readWriteEnable)
 {
     assert(_pDevice != nullptr);
 }
@@ -22,7 +24,7 @@ void Mesh::SetVertices(const glm::vec3 *vertices, size_t cnt)
 
     memcpy(_positions.data(), vertices, sizeof(glm::vec3) * cnt);
     _set_attr_dirty(Position);
-    _attributeCnt[Position] = cnt;
+    _attrCnt[Position] = cnt;
 }
 
 void Mesh::SetNormals(const glm::vec3 *normals, size_t cnt)
@@ -32,7 +34,7 @@ void Mesh::SetNormals(const glm::vec3 *normals, size_t cnt)
     
     memcpy(_normals.data(), normals, sizeof(glm::vec3) * cnt);
     _set_attr_dirty(Normal);
-    _attributeCnt[Normal] = cnt;
+    _attrCnt[Normal] = cnt;
 }
 
 void Mesh::SetTangents(const glm::vec3 *tangents, size_t cnt)
@@ -42,7 +44,7 @@ void Mesh::SetTangents(const glm::vec3 *tangents, size_t cnt)
     
     memcpy(_tangents.data(), tangents, sizeof(glm::vec3) * cnt);
     _set_attr_dirty(Tangent);
-    _attributeCnt[Tangent] = cnt;
+    _attrCnt[Tangent] = cnt;
 }
 
 void Mesh::SetColors(const glm::vec4 *colors, size_t cnt)
@@ -52,7 +54,7 @@ void Mesh::SetColors(const glm::vec4 *colors, size_t cnt)
     
     memcpy(_colors.data(), colors, sizeof(glm::vec4) * cnt);
     _set_attr_dirty(Color);
-    _attributeCnt[Color] = cnt;
+    _attrCnt[Color] = cnt;
 }
 
 void Mesh::SetUV1s(const glm::vec2 *uvs, size_t cnt)
@@ -62,7 +64,7 @@ void Mesh::SetUV1s(const glm::vec2 *uvs, size_t cnt)
     
     memcpy(_uv0.data(), uvs, sizeof(glm::vec2) * cnt);
     _set_attr_dirty(UV0);
-    _attributeCnt[UV0] = cnt;
+    _attrCnt[UV0] = cnt;
 }
 
 void Mesh::SetUV2s(const glm::vec2 *uvs, size_t cnt)
@@ -72,7 +74,7 @@ void Mesh::SetUV2s(const glm::vec2 *uvs, size_t cnt)
 
     memcpy(_uv1.data(), uvs, sizeof(glm::vec2) * cnt);
     _set_attr_dirty(UV1);
-    _attributeCnt[UV1] = cnt;
+    _attrCnt[UV1] = cnt;
 }
 
 void Mesh::SetIndices(const uint32_t *idxs, size_t cnt)
@@ -82,7 +84,7 @@ void Mesh::SetIndices(const uint32_t *idxs, size_t cnt)
     
     memcpy(_indices.data(), idxs, sizeof(uint32_t) * cnt);
     _set_attr_dirty(MaxAttribute);
-    _attributeCnt[MaxAttribute] = cnt;
+    _attrCnt[MaxAttribute] = cnt;
 }
 
 
@@ -91,95 +93,92 @@ bool Mesh::Apply()
     if (!_pDevice || _pDevice->IsValid())
         return false;
 
-    if (!_attributeDirty.any())
+    if (!_attrDirty.any())
         return false;
 
-    CommandBuffer *cmd{nullptr};
+    CommandBuffer* cmd{nullptr};
+
     if (!_readWriteEnable)
     {
-        _pDevice->CreateTempraryCommandBuffer(_pDevice->GetTransferQueue());
+        cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetTransferQueue());
         cmd->Begin();
     }
 
     // position
     if (_is_attr_dirty(Position))
     {
-        if (!_gpuBuffers[Position])
-            _gpuBuffers[Position] = _gen_buffer(Position, _get_attr_byte_size(Position) * _positions.size());
-        _update_buffer(cmd, Position, (uint8_t*)_positions.data(), _get_attr_byte_size(Position) * _positions.size());
-        if (!_readWriteEnable)
-            _positions.clear();
-        _unset_attr_dirty(Position);
+        size_t sz = _get_attr_byte_size(Position) * _positions.size();
+        if (!_attrBuffers[Position])
+            _gen_buffer(Position, sz);
+        _update_buffer(cmd, Position, (uint8_t*)_positions.data(), sz);
     }
 
     // normal
     if (_is_attr_dirty(Normal))
     {
-        if (!_gpuBuffers[Normal])
-            _gpuBuffers[Normal] = _gen_buffer(Normal, _get_attr_byte_size(Normal) * _normals.size());
-        _update_buffer(cmd, Normal, (uint8_t*)_normals.data(), _get_attr_byte_size(Normal) * _normals.size());
-        if (!_readWriteEnable)
-            _normals.clear();
-        _unset_attr_dirty(Normal);
+        size_t sz = _get_attr_byte_size(Normal) * _normals.size();
+        if (!_attrBuffers[Normal])
+            _gen_buffer(Normal, sz);
+        _update_buffer(cmd, Normal, (uint8_t*)_normals.data(), sz);
     }
 
     // tangent
     if (_is_attr_dirty(Tangent))
     {
-        if (!_gpuBuffers[Tangent])
-            _gpuBuffers[Tangent] = _gen_buffer(Tangent, _get_attr_byte_size(Tangent) * _tangents.size());
-        _update_buffer(cmd, Tangent, (uint8_t*)_tangents.data(), _get_attr_byte_size(Tangent) * _tangents.size());
-        if (!_readWriteEnable)
-            _tangents.clear();
-        _unset_attr_dirty(Tangent);
+        size_t sz = _get_attr_byte_size(Tangent) * _tangents.size();
+        if (!_attrBuffers[Tangent])
+           _gen_buffer(Tangent, sz);
+        _update_buffer(cmd, Tangent, (uint8_t*)_tangents.data(), sz);
     }
 
     // color 
     if (_is_attr_dirty(Color))
     {
-        if (!_gpuBuffers[Color])
-            _gpuBuffers[Color] = _gen_buffer(Color, _get_attr_byte_size(Color) * _colors.size());
-        _update_buffer(cmd, Color, (uint8_t*)_colors.data(), _get_attr_byte_size(Color) * _colors.size());
-        if (!_readWriteEnable)
-            _colors.clear();
-        _unset_attr_dirty(Color);  
+        size_t sz = _get_attr_byte_size(Color) * _colors.size();
+        if (!_attrBuffers[Color])
+           _gen_buffer(Color, sz);
+        _update_buffer(cmd, Color, (uint8_t*)_colors.data(), sz);
     }
 
     // uv0 
     if (_is_attr_dirty(UV0))
     {
-        if (!_gpuBuffers[UV0])
-            _gpuBuffers[UV0] = _gen_buffer(UV0, _get_attr_byte_size(UV0) * _uv0.size());
-        _update_buffer(cmd, UV0, (uint8_t*)_uv0.data(), _get_attr_byte_size(UV0) * _uv0.size());
-        if (!_readWriteEnable)
-            _uv0.clear();
-        _unset_attr_dirty(UV0);  
+        size_t sz = _get_attr_byte_size(UV0) * _uv0.size();
+        if (!_attrBuffers[UV0])
+            _gen_buffer(UV0, sz);
+        _update_buffer(cmd, UV0, (uint8_t*)_uv0.data(), sz);
     }
 
     // uv1
     if (_is_attr_dirty(UV1))
     {
-        if (!_gpuBuffers[UV1])
-            _gpuBuffers[UV1] = _gen_buffer(UV1, _get_attr_byte_size(UV1) * _uv1.size());
-        _update_buffer(cmd, UV1, (uint8_t*)_uv1.data(), _get_attr_byte_size(UV1) * _uv1.size());
-        if (!_readWriteEnable)
-            _uv1.clear();
-        _unset_attr_dirty(UV1); 
+        size_t sz = _get_attr_byte_size(UV1) * _uv1.size();
+        if (!_attrBuffers[UV1])
+            _gen_buffer(UV1, sz);
+        _update_buffer(cmd, UV1, (uint8_t*)_uv1.data(), sz);
     }
 
     // index
     if (_is_attr_dirty(MaxAttribute))
     {
-        if (!_gpuBuffers[MaxAttribute])
-            _gpuBuffers[MaxAttribute] = _gen_buffer(MaxAttribute, _get_attr_byte_size(MaxAttribute) * _indices.size());
-        _update_buffer(cmd, MaxAttribute, (uint8_t*)_indices.data(), _get_attr_byte_size(MaxAttribute) * _indices.size());
-        if (!_readWriteEnable)
-            _indices.clear();
-        _unset_attr_dirty(MaxAttribute);  
+        size_t sz = _get_attr_byte_size(MaxAttribute) * _indices.size();
+        if (!_attrBuffers[MaxAttribute])
+            _gen_buffer(MaxAttribute, sz);
+        _update_buffer(cmd, MaxAttribute, (uint8_t*)_indices.data(), sz); 
     }
 
-    if (cmd)
-        cmd->ExecuteAsync(nullptr);
+
+    if (!_readWriteEnable)
+    {
+        Fence* f = _pDevice->CreateFence(false);
+        cmd->ExecuteAsync(f);
+        f->Wait();
+        _pDevice->DestroyFence(f);
+        _clear_staging_data();
+        _clear_cpu_data();
+    }
+
+    _attrDirty.reset();
 
     return true;
 }
@@ -188,32 +187,45 @@ void Release();
 
 
 
-Buffer* Mesh::_gen_buffer(Attribute attr, size_t size)
+void Mesh::_gen_buffer(Attribute attr, size_t size)
 {
     bool isIndex = attr == MaxAttribute;
     VkBufferUsageFlags usage = isIndex ? VK_BUFFER_USAGE_INDEX_BUFFER_BIT : VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     usage |= _readWriteEnable ? 0 : VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     VkMemoryPropertyFlags memProp = _readWriteEnable ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-    return _pDevice->CreateBuffer(size, usage, memProp);
+    _attrBuffers[attr] = _pDevice->CreateBuffer(size, usage, memProp);
+}
+
+void Mesh::_gen_staging_data(Attribute attr, uint8_t *data, size_t sz)
+{
+    assert(_stagingBuffers[attr] == nullptr);
+    _stagingBuffers[attr] = _pDevice->CreateBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    uint8_t *mapedData = _stagingBuffers[attr]->Map();
+    memcpy(mapedData, data, sz);
+    _stagingBuffers[attr]->UnMap();
 }
 
 void Mesh::_update_buffer(CommandBuffer *cmd, Attribute attr, uint8_t *data, size_t size)
 {
     bool isIndex = attr == MaxAttribute;
-    Buffer *buf = _gpuBuffers[attr];
+    Buffer *buf = _attrBuffers[attr];
     if (_readWriteEnable)
     {
+        // host access directly
         uint8_t *mapedPtr = buf->Map();
         memcpy(mapedPtr, data, size);
         buf->UnMap();
     }
     else
     {
+        // transfer using staging buffer
+        _gen_staging_data(attr, data, size);
+
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
         VkAccessFlags waitOp = isIndex ? VK_ACCESS_INDEX_READ_BIT : VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
         VkPipelineStageFlags signalStage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
         VkAccessFlags signalOp = isIndex ? VK_ACCESS_INDEX_READ_BIT : VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
-        cmd->UpdateBuffer(buf, 0, data, 0, size, waitStage, waitOp, signalStage, signalOp);
+        cmd->CopyBuffer(_stagingBuffers[attr], 0, _attrBuffers[attr], 0, size, waitStage, waitOp, signalStage, signalOp);
     }
 }
 
@@ -243,20 +255,8 @@ size_t Mesh::_get_attr_byte_size(Attribute attr)
     return 0;
 }
 
-
-void Mesh::Release()
+void Mesh::_clear_cpu_data()
 {
-
-    for (size_t i = 0; i < MaxAttribute + 1; i++)
-    {
-        if (_gpuBuffers[i] != nullptr)
-        {
-            _pDevice->DestroyBuffer(_gpuBuffers[i]);
-            _gpuBuffers[i] = nullptr;
-        }
-        _attributeCnt[i] = 0;
-    }
-
     _positions.clear();
     _normals.clear();
     _tangents.clear();
@@ -264,7 +264,38 @@ void Mesh::Release()
     _uv0.clear();
     _uv1.clear();
     _indices.clear();
+}
 
-    _attributeDirty.reset();
+void Mesh::_clear_gpu_data()
+{
+    for (size_t i = 0; i < MaxAttribute + 1; i++)
+    {
+        if (_attrBuffers[i] != nullptr)
+        {
+            _pDevice->DestroyBuffer(_attrBuffers[i]);
+            _attrBuffers[i] = nullptr;
+        }
+        _attrCnt[i] = 0;
+    }
+}
+
+void Mesh::_clear_staging_data()
+{
+    for (size_t i = 0; i < MaxAttribute + 1; i++)
+    {
+        if (_stagingBuffers[i] != nullptr)
+        {
+            _pDevice->DestroyBuffer(_stagingBuffers[i]);
+            _stagingBuffers[i] = nullptr;
+        }
+    }
+}
+
+void Mesh::Release()
+{
+    _clear_staging_data();
+    _clear_gpu_data();
+    _clear_cpu_data();
+    _attrDirty.reset();
     _readWriteEnable = false;
 }

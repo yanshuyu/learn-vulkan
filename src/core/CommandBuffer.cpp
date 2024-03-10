@@ -139,30 +139,23 @@ bool CommandBuffer::Reset()
     return true;
 }
 
-bool CommandBuffer::UpdateBuffer(Buffer *buf,
-                                 size_t bufOffset,
-                                 uint8_t *data,
-                                 size_t dataOffset,
-                                 size_t dataSz,
-                                 VkPipelineStageFlags waitStageMask,
-                                 VkAccessFlags waitAccessMask,
-                                 VkPipelineStageFlags signalStageMask,
-                                 VkAccessFlags signalAccessMask)
+bool CommandBuffer::CopyBuffer(const Buffer* src,
+                      size_t srcOffset,
+                      Buffer* dst,
+                      size_t dstOffset,
+                      size_t dataSz,
+                      VkPipelineStageFlags waitStageMask,
+                      VkAccessFlags waitAccessMask,
+                      VkPipelineStageFlags signalStageMask,
+                      VkAccessFlags signalAccessMask)
 {
     if (_state != State::Recording)
         return false;
 
-    // create a staging buffer as buffer copy transffer source
-    Buffer *stageBuf = _pDevice->CreateBuffer(dataSz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    // copy cpu data to staging buffer
-    uint8_t *mapedData = stageBuf->Map();
-    memcpy(mapedData, data + dataOffset, dataSz);
-    stageBuf->UnMap();
-
     // insert a buffer memory barrier to ensure transffer write wait for prev read finish
     VkBufferMemoryBarrier mb{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
-    mb.buffer = buf->GetHandle();
-    mb.offset = bufOffset;
+    mb.buffer = dst->GetHandle();
+    mb.offset = dstOffset;
     mb.size = dataSz;
     mb.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     mb.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -172,18 +165,15 @@ bool CommandBuffer::UpdateBuffer(Buffer *buf,
 
     // transffer staging buffer to dst buffer
     VkBufferCopy copyArea{};
-    copyArea.srcOffset = bufOffset;
+    copyArea.srcOffset = srcOffset;
     copyArea.dstOffset = 0;
     copyArea.size = dataSz;
-    vkCmdCopyBuffer(GetHandle(), stageBuf->GetHandle(), buf->GetHandle(), 1, &copyArea);
+    vkCmdCopyBuffer(GetHandle(), src->GetHandle(), dst->GetHandle(), 1, &copyArea);
 
     // insert a buffer memory barrier to ensure next read wait for transffer write finish
     mb.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     mb.dstAccessMask = signalAccessMask;
     vkCmdPipelineBarrier(GetHandle(), VK_PIPELINE_STAGE_TRANSFER_BIT, signalStageMask, 0, 0, nullptr, 1, &mb, 0, nullptr);
-
-    // destroy staging buffer
-    _pDevice->DestroyBuffer(stageBuf);
 
     return true;
 }
