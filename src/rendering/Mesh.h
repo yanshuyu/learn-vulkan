@@ -67,7 +67,7 @@ public:
     void SetColors(const glm::vec4* colors, size_t cnt);
     void SetUV1s(const glm::vec2* uvs, size_t cnt);
     void SetUV2s(const glm::vec2* uvs, size_t cnt);
-    void SetIndices(const uint32_t* idxs, size_t cnt);
+    void SetIndices(const index_t* idxs, size_t cnt);
     void SetTopology(VkPrimitiveTopology pt) { _topology = pt; }
     //void SetReadWriteEnable(bool enable) { _readWriteEnable = enable; };
 

@@ -1,7 +1,9 @@
 #pragma once
 #include"Application.h"
 #include"core\CoreUtils.h"
+#include<memory>
 
+class Mesh;
 
 class CommandBuffer;
 
@@ -23,6 +25,11 @@ private:
     VkImageView m_DepthBufferView{VK_NULL_HANDLE};
     VkDeviceMemory m_DepthBufferMemory{VK_NULL_HANDLE};
     std::vector<VkFramebuffer> m_SwapChainFrameBuffers{};
+
+    VkDescriptorPool _descriptorPool{VK_NULL_HANDLE};
+    
+    std::unique_ptr<Mesh> _triangleMesh{};
+    VkDescriptorSet _triangleDescriotorSet{VK_NULL_HANDLE};
     
 public:
     ApiSample(const AppDesc& appDesc);

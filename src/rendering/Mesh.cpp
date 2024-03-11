@@ -77,12 +77,12 @@ void Mesh::SetUV2s(const glm::vec2 *uvs, size_t cnt)
     _attrCnt[UV1] = cnt;
 }
 
-void Mesh::SetIndices(const uint32_t *idxs, size_t cnt)
+void Mesh::SetIndices(const index_t *idxs, size_t cnt)
 {
     if (_indices.size() < cnt)
         _indices.resize(cnt);
     
-    memcpy(_indices.data(), idxs, sizeof(uint32_t) * cnt);
+    memcpy(_indices.data(), idxs, sizeof(index_t) * cnt);
     _set_attr_dirty(MaxAttribute);
     _attrCnt[MaxAttribute] = cnt;
 }

@@ -4,6 +4,7 @@
 #include"core\SwapChain.h"
 #include"core\CommandBuffer.h"
 #include"rendering\Window.h"
+#include"rendering\Mesh.h"
 
 ApiSample::ApiSample(const AppDesc& appDesc)
 : Application(appDesc)
@@ -51,7 +52,28 @@ bool ApiSample::Setup()
         LOGE("-->ApiSample: failed to create frame buffers!");
         return false; 
     }
-    
+
+    // mesh
+    glm::vec3 triVerts[3] = {
+        {-1, 0, 0},
+        {0, 1, 0},
+        {1, 0, 0},
+    };
+
+    glm::vec4 triColors[3] = {
+        {1, 0, 0, 1},
+        {0, 1, 0, 1},
+        {0, 0, 1, 1},
+    };
+
+    Mesh::index_t triIndices[3] = {0, 1, 2};
+
+    _triangleMesh.reset(new Mesh(m_pDevice.get()));
+    _triangleMesh->SetVertices(triVerts, 3);
+    _triangleMesh->SetColors(triColors, 3);
+    _triangleMesh->SetIndices(triIndices, 3);
+    _triangleMesh->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    assert(_triangleMesh->Apply());
 
     return true;
 }
@@ -59,6 +81,8 @@ bool ApiSample::Setup()
 
 void ApiSample::Release()
 {
+    _triangleMesh->Release();
+
     DestroySwapChainFrameBuffers();
 
     DestroyRenderPass();
