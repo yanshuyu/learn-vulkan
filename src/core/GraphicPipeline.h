@@ -10,18 +10,10 @@
 using std::vector;
 
 class Device;
+class ShaderProgram;
 
 class GraphicPipeline 
 {
-
-private: 
-    struct ShaderStageInfo
-    {
-        const char* pEntryName;
-        VkShaderModule shaderMoudle;
-        VkShaderStageFlagBits stage;
-    };
-    
 
 private:
     // vertex input
@@ -29,8 +21,7 @@ private:
     vector<VkVertexInputAttributeDescription> m_VIAttrsDesc{};
 
     // input assembly
-    VkPrimitiveTopology m_IATopology{VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST};
-    bool m_IAPrimitiveRestart{false};
+    VkPipelineInputAssemblyStateCreateInfo m_IADesc{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO}; 
 
     // viewport & scissor
     VkViewport m_Viewport{};
@@ -49,24 +40,14 @@ private:
     vector<VkDynamicState> m_DynamicStates;
 
     // multisample state
-    bool m_AlphaToCoverageEnable;
-    VkSampleCountFlagBits m_MsSampleCount;
-
-    // programmable shader stages
-    vector<ShaderStageInfo> m_ShaderInfo{};
-
-    //pipeline access shader resource
-    std::unordered_map<int, std::vector<VkDescriptorSetLayoutBinding>> m_DescriptorSetLayoutsBinding{};
-
-    // pipeline
-    VkPipeline m_Pipeline{VK_NULL_HANDLE};
-    VkPipelineLayout m_PipelineLayout{VK_NULL_HANDLE};
-    std::unordered_map<int, VkDescriptorSetLayout> m_DescriptorSetLayouts{};
+    VkPipelineMultisampleStateCreateInfo m_MSDesc{ VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
     
+    VkPipeline m_Pipeline{VK_NULL_HANDLE};
+
     Device* m_pDevice{nullptr};
 
 public:
-    GraphicPipeline();
+    GraphicPipeline(Device* pDevice);
     ~GraphicPipeline();
 
     //vertex input
@@ -80,7 +61,7 @@ public:
 
     // input assembly
     void IASetTopology(VkPrimitiveTopology pt, bool ptRestarted = false);
-    VkPrimitiveTopology IAGetTopology() const { return m_IATopology; }
+    VkPrimitiveTopology IAGetTopology() const { return m_IADesc.topology; }
 
     // viewport & scissor
     void VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D scissorRect);
@@ -99,6 +80,7 @@ public:
     void RSSetCullFace(VkCullModeFlags cullMode) { m_RSCreateInfo.cullMode = cullMode; }
     void RSSetFillMode(VkPolygonMode fillMode) { m_RSCreateInfo.polygonMode = fillMode; }
     void RSSetFrontFaceOrder(VkFrontFace faceOrder) { m_RSCreateInfo.frontFace = faceOrder; }
+    void RSSetLineWidth(uint32_t lw) { m_RSCreateInfo.lineWidth = lw; }
     void RSEnableDepthBias() { m_RSCreateInfo.depthBiasEnable = VK_TRUE; }
     void RSDisableDepthBias() { m_RSCreateInfo.depthBiasEnable = VK_FALSE; }
     void RSSetDepthBias(float constFactor, float slotFactor, float clamp = 0);
@@ -138,28 +120,23 @@ public:
     bool FBGetAlphaBlendOp(int attachmentIdx, VkBlendFactor& srcFactor, VkBlendFactor& dstFactor, VkBlendOp& op) const;
 
     // dynamic states
-    void SetDynamicStateHint(VkDynamicState state);
-    void UnsetDynamicStateHint(VkDynamicState state);;
+    void EnableDynamicState(VkDynamicState state);
+    void DisableDynamicState(VkDynamicState state);;
     bool IsDynamicState(VkDynamicState state) const;
     int DynamicStateCount() const { return m_DynamicStates.size(); }
+    const std::vector<VkDynamicState>& GetDynamicStates() const { return m_DynamicStates; }
 
     // multi sample state
-    void MSEnableAlphaToCoverage() { m_AlphaToCoverageEnable = true; }
-    void MSDisableAlphaToCoverage() { m_AlphaToCoverageEnable = false; }
-    bool MSAlphaToCoverageEnabled() const { return m_AlphaToCoverageEnable; }
+    void MSEnableAlphaToCoverage() { m_MSDesc.alphaToCoverageEnable = true; }
+    void MSDisableAlphaToCoverage() { m_MSDesc.alphaToCoverageEnable = false; }
+    bool MSAlphaToCoverageEnabled() const { return m_MSDesc.alphaToCoverageEnable; }
+    void MSEnableAlphaToOne() { m_MSDesc.alphaToOneEnable = true; }
+    void MSDisableAlphaToOne() { m_MSDesc.alphaToOneEnable = false; }
+    bool MSGetAlphaToOneEnable() { return m_MSDesc.alphaToOneEnable; }
     void MSSetSampleCount(int sampleCnt);
     int MSGetSampleCount() const;
 
-    // Shader Stages
-    void SetShader(VkShaderModule shaderMoule, VkShaderStageFlagBits shaderStage, const char* entryName);
-
-    // Shader Resource
-    void SRBindResource(uint32_t setIdx, uint32_t bindingLocation, VkDescriptorType resourceType, uint32_t resourceArrayElementCnt, VkShaderStageFlags accessStages);
-    VkDescriptorSetLayout SRGetSetLayout(uint32_t setIdx) const { return m_DescriptorSetLayouts.at(setIdx); }
-    bool SRHasSetLayout(uint32_t setIdx) const { return m_DescriptorSetLayouts.find(setIdx) != m_DescriptorSetLayouts.end(); }
-    VkPipelineLayout SRGetPipelineLayout() const { return m_PipelineLayout; }
-
-    bool Create(Device* pDevice, VkRenderPass renderPass, uint32_t subPas = 0);
+    bool Create(ShaderProgram* program, VkRenderPass renderPass, uint32_t subPas = 0);
     bool IsCreate() const { return m_Pipeline != VK_NULL_HANDLE; }
     VkPipeline GetHandle() const { return m_Pipeline; }
     void Release();
@@ -219,5 +196,4 @@ private:
         return ds;
     }
 
-    void CleanDescriptorSetLayouts(VkDevice device);
 };
