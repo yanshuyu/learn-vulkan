@@ -32,11 +32,10 @@ private:
     //VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
 
 private:
-    std::vector<Fence*> _Fences{};
-
-    ObjectPool<CommandBuffer> _CmdBufPool{};
-    ObjectPool<Buffer> _BufferPool{};
-    ObjectPool<Image> _ImagePool{};
+    ObjectPool<CommandBuffer> _CmdBufPool;
+    ObjectPool<Buffer> _BufferPool;
+    ObjectPool<Fence> _FencePool;
+    ObjectPool<Image> _ImagePool;
 
 public:
     Device();
@@ -70,16 +69,16 @@ public:
     std::vector<VkPresentModeKHR> GetSupportedPresentModes(Window* window) const;
     bool GetSurfaceCapabilities(Window* window, VkSurfaceCapabilitiesKHR* pResult) const;
 
-    CommandBuffer* CreateCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, false); }
-    CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, true); }
-    bool DestroyCommandBuffer(CommandBuffer* pCmdBuf);
-
     // Features & Limits
     bool IsFeatureSupport(DeviceFeatures feature) const;
     bool IsFeatureEnabled(DeviceFeatures feature) const;
     bool IsFormatFeatureSupport(VkFormat fmt, VkFormatFeatureFlagBits fmtFeature, bool linearTiling) const;
     uint32_t GetDeviceLimit(DeviceLimits limit) const;
 
+    CommandBuffer* CreateCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, false); }
+    CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, true); }
+    bool DestroyCommandBuffer(CommandBuffer* pCmdBuf);
+    
     // Memory Alloc & Free
     bool AllocMemory(const VkMemoryRequirements& memReq, VkMemoryPropertyFlags memPropFlag, VkDeviceMemory* pAllocatedMem);
     void FreeMemory(VkDeviceMemory mem);
@@ -87,7 +86,7 @@ public:
     // Resource Create & Destroy
     
     Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
-    void DestroyBuffer(Buffer* pBuffer);
+    bool DestroyBuffer(Buffer* pBuffer);
 
     Image *CreateImage(VkFormat fmt,
                        uint32_t width,
@@ -99,9 +98,9 @@ public:
                        uint32_t layerCnt = 1,
                        uint32_t sampleCnt = 1,
                        bool linearTiling = false);
-    void DestroyImage(Image* pImage);
+    bool DestroyImage(Image* pImage);
 
-    Fence* CreateFence(bool signaled);
+    Fence* CreateFence(bool signaled = false);
     bool DestroyFence(Fence* pFence);
     
 private:

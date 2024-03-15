@@ -3,6 +3,7 @@
 #include"core\Device.h"
 #include"core\SwapChain.h"
 #include"rendering\Window.h"
+#include"rendering\AssetsManager.h"
 
 
 Application::Application(const AppDesc& appDesc)
@@ -121,6 +122,8 @@ bool Application::Prepare(Window* window)
             return false;
         }
     }
+
+    AssetsManager::Initailize(m_pDevice.get());
     
     // concrete application will prepare it's resource here...
     return Setup();
@@ -134,6 +137,8 @@ void Application::Finish()
 
     // concrete application must relase all device's child resource here ...
     Release();
+
+    AssetsManager::Release();
 
     m_pSwapChain->Release();
 

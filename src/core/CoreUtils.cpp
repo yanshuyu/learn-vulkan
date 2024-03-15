@@ -1,5 +1,16 @@
 #include"core\CoreUtils.h"
 
+VkImageAspectFlags vkutils_get_image_asepect_mask(VkFormat fmt)
+{
+    if (vkutils_is_color_format(fmt))
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (vkutils_is_depth_only_format(fmt))
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (vkutils_is_stencil_only_format(fmt))
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+}
 
 VkImageLayout vkutils_get_render_pass_attachment_best_input_layout(VkFormat fmt)
 {
@@ -7,7 +18,7 @@ VkImageLayout vkutils_get_render_pass_attachment_best_input_layout(VkFormat fmt)
         return VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
     else if (vkutils_is_depth_only_format(fmt))
         return VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
-    else if (vkutils_is_depth_stencil_format)
+    else if (vkutils_is_depth_and_stencil_format)
         return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
     return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -20,7 +31,7 @@ VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt
         return VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
     else if (vkutils_is_depth_only_format(fmt))
         return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    else if (vkutils_is_depth_stencil_format)
+    else if (vkutils_is_depth_and_stencil_format)
         return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -60,6 +71,7 @@ VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt)
 
     return sampleCntBits[(uint32_t)std::log2(sampleCnt)];
 }
+
 
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string> &arr, const char *name, bool enabled)
 {
@@ -163,7 +175,7 @@ uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, De
         return vkutils_fetch_max_sample_count(limitProps.framebufferDepthSampleCounts);
     
     default:
-        0;
+        return 0;
     }
 }
 

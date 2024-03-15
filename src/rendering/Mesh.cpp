@@ -9,6 +9,7 @@ Mesh::Mesh(Device* pDevice, bool readWriteEnable)
 , _readWriteEnable(readWriteEnable)
 {
     assert(_pDevice != nullptr);
+    _clear_attr_binding();    
 }
 
 Mesh::~Mesh()
@@ -90,11 +91,13 @@ void Mesh::SetIndices(const index_t *idxs, size_t cnt)
 
 bool Mesh::Apply()
 {
-    if (!_pDevice || _pDevice->IsValid())
+    if (!_pDevice || !_pDevice->IsValid())
         return false;
 
     if (!_attrDirty.any())
         return false;
+
+    _clear_attr_binding();    
 
     CommandBuffer* cmd{nullptr};
 
@@ -111,6 +114,7 @@ bool Mesh::Apply()
         if (!_attrBuffers[Position])
             _gen_buffer(Position, sz);
         _update_buffer(cmd, Position, (uint8_t*)_positions.data(), sz);
+        _append_attr_binding(Position);
     }
 
     // normal
@@ -120,6 +124,7 @@ bool Mesh::Apply()
         if (!_attrBuffers[Normal])
             _gen_buffer(Normal, sz);
         _update_buffer(cmd, Normal, (uint8_t*)_normals.data(), sz);
+        _append_attr_binding(Normal);
     }
 
     // tangent
@@ -129,6 +134,7 @@ bool Mesh::Apply()
         if (!_attrBuffers[Tangent])
            _gen_buffer(Tangent, sz);
         _update_buffer(cmd, Tangent, (uint8_t*)_tangents.data(), sz);
+        _append_attr_binding(Tangent);
     }
 
     // color 
@@ -138,6 +144,7 @@ bool Mesh::Apply()
         if (!_attrBuffers[Color])
            _gen_buffer(Color, sz);
         _update_buffer(cmd, Color, (uint8_t*)_colors.data(), sz);
+        _append_attr_binding(Color);
     }
 
     // uv0 
@@ -147,6 +154,7 @@ bool Mesh::Apply()
         if (!_attrBuffers[UV0])
             _gen_buffer(UV0, sz);
         _update_buffer(cmd, UV0, (uint8_t*)_uv0.data(), sz);
+        _append_attr_binding(UV0);
     }
 
     // uv1
@@ -156,6 +164,7 @@ bool Mesh::Apply()
         if (!_attrBuffers[UV1])
             _gen_buffer(UV1, sz);
         _update_buffer(cmd, UV1, (uint8_t*)_uv1.data(), sz);
+        _append_attr_binding(UV1);
     }
 
     // index
@@ -170,6 +179,7 @@ bool Mesh::Apply()
 
     if (!_readWriteEnable)
     {
+        cmd->End();
         Fence* f = _pDevice->CreateFence(false);
         cmd->ExecuteAsync(f);
         f->Wait();
@@ -229,7 +239,7 @@ void Mesh::_update_buffer(CommandBuffer *cmd, Attribute attr, uint8_t *data, siz
     }
 }
 
-size_t Mesh::_get_attr_byte_size(Attribute attr)
+size_t Mesh::_get_attr_byte_size(Attribute attr) const
 {
     switch (attr)
     {
@@ -254,6 +264,31 @@ size_t Mesh::_get_attr_byte_size(Attribute attr)
 
     return 0;
 }
+
+
+VkFormat Mesh::GetAttributeFormat(Attribute attr) const
+{
+    switch (attr)
+    {
+    case Position:
+    case Normal:
+    case Tangent:
+        return VK_FORMAT_R32G32B32_SFLOAT;
+
+    case Color:
+        return VK_FORMAT_R32G32B32A32_SFLOAT;
+
+    case UV0:
+    case UV1:
+        return VK_FORMAT_R32G32_SFLOAT;
+
+    default:
+        break;
+    }
+
+    return VK_FORMAT_MAX_ENUM;
+}
+
 
 void Mesh::_clear_cpu_data()
 {
@@ -291,8 +326,28 @@ void Mesh::_clear_staging_data()
     }
 }
 
+
+void Mesh::_clear_attr_binding()
+{
+    for (size_t i = 0; i < MaxAttribute; i++)
+    {
+        _attrBindingHandls[i] = VK_NULL_HANDLE;
+        _attrBindings[i] = -1;
+    }
+    _attrBindingCnt = 0;
+}
+
+
+void Mesh::_append_attr_binding(Attribute attr)
+{
+    _attrBindingHandls[_attrBindingCnt] = _attrBuffers[attr]->GetHandle();
+    _attrBindings[attr] = _attrBindingCnt;
+    _attrBindingCnt++;
+}
+
 void Mesh::Release()
 {
+    _clear_attr_binding();
     _clear_staging_data();
     _clear_gpu_data();
     _clear_cpu_data();

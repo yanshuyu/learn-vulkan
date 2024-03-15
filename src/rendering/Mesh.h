@@ -2,6 +2,7 @@
 #include<glm\glm.hpp>
 #include<vector>
 #include<bitset>
+#include<string>
 #include"core\CoreUtils.h"
 
 class Buffer;
@@ -11,19 +12,6 @@ class Device;
 
 class Mesh
 {
-public:
-    enum Attribute 
-    {
-        Position,
-        Normal,
-        Tangent,
-        Color,
-        UV0,
-        UV1,
-        MaxAttribute,
-    };
-
-    typedef uint32_t index_t;
 
 private:
     std::vector<glm::vec3> _positions{};
@@ -43,11 +31,17 @@ private:
     size_t _attrCnt[MaxAttribute + 1] {};
     std::bitset<MaxAttribute+1> _attrDirty{0};
 
+    std::array<VkBuffer, MaxAttribute> _attrBindingHandls{};
+    std::array<int, MaxAttribute> _attrBindings{};
+    size_t _attrBindingCnt{0};
+
+    std::string _name{};
+
 private:
     void _set_attr_dirty(Attribute attr) { _attrDirty.set(attr, true); }
     void _unset_attr_dirty(Attribute attr) { _attrDirty.set(attr, false); }
     bool _is_attr_dirty(Attribute attr) { return _attrDirty.test(attr); }
-    size_t _get_attr_byte_size(Attribute attr);
+    size_t _get_attr_byte_size(Attribute attr) const;
     void _gen_buffer(Attribute attr, size_t size);
     void _gen_staging_data(Attribute attr, uint8_t* data, size_t sz);
     void _update_buffer(CommandBuffer* cmd, Attribute attr, uint8_t* data, size_t size);
@@ -55,11 +49,16 @@ private:
     void _clear_cpu_data();
     void _clear_gpu_data();
     void _clear_staging_data();
+    void _clear_attr_binding();
+    void _append_attr_binding(Attribute attr);
 public:
     Mesh(Device* pDevice, bool readWriteEnable = false);
     ~Mesh();
 
     NONE_COPYABLE_NONE_MOVEABLE(Mesh)
+
+    void SetName(const char* name) { _name = name; }
+    const char* GetName() const { return _name.c_str(); }
 
     void SetVertices(const glm::vec3* vertices, size_t cnt);
     void SetNormals(const glm::vec3* normals, size_t cnt);
@@ -73,13 +72,15 @@ public:
 
     bool Apply();
     void Release();
+    bool IsValid() const { return _attrBindingCnt > 0; }
 
     bool HasVertices() const { return _attrCnt[Position] > 0; }
     bool HasNormals() const { return _attrCnt[Normal] > 0; }
     bool HasTangents() const { return _attrCnt[Tangent] > 0; }
     bool HasColors() const { return _attrCnt[Color] > 0; }
     bool HasUV1s() const { return _attrCnt[UV0] > 0; }
-    bool hasUV2s() const { return _attrCnt[UV1] > 0; } 
+    bool hasUV2s() const { return _attrCnt[UV1] > 0; }
+    bool HasAttribute(Attribute attr) const { return _attrCnt[attr] > 0; } 
 
     size_t GetVerticesCount() const { return _attrCnt[Position]; }
     size_t GetIndicesCount() const { return _attrCnt[MaxAttribute]; }
@@ -94,5 +95,14 @@ public:
     const std::vector<uint32_t>& GetIndices() const { return _indices; }
 
     Buffer* GetAttributeBuffer(Attribute attr) const { return _attrBuffers[attr]; }
+    Buffer* GetIndexBuffer() const { return _attrBuffers[MaxAttribute]; }
+    size_t GetAttributeStride(Attribute attr) const { return _get_attr_byte_size(attr); }
+
+    size_t GetAttributeCount() const { return _attrBindingCnt; }
+    int GetAttributeBinding(Attribute attr) const { return _attrBindings[attr]; }
+    const VkBuffer* GetAttributeBindingHandls() const { return _attrBindingHandls.data(); }
+
+    VkFormat GetAttributeFormat(Attribute attr) const;
+    VkIndexType GetIndexType() const { return VK_INDEX_TYPE_UINT32; }   
 };
 

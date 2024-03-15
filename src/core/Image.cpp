@@ -1,18 +1,13 @@
 #include"core\Image.h"
 #include"core\Device.h"
 
-
-bool Image::Create(Device *pDevice, const ImageDesc &desc)
+ Image::Image(Device* pDevice): VKDeviceResource(pDevice), IMapAccessMemory()
 {
-    if (IsValid())
-        return false;
 
-    if (pDevice == nullptr || !pDevice->IsValid())
-    {
-        LOGE("Try to create Image with an invalid Device({}) instance!", (void *)pDevice);
-        return false;
-    }
+}
 
+bool Image::_create(const ImageDesc &desc)
+{
     bool canMap = desc.linearTiling && (desc.memFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) > 0; // only linear tiling image can access by host directly
     VkImageCreateInfo createInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     createInfo.format = desc.format;
@@ -26,31 +21,31 @@ bool Image::Create(Device *pDevice, const ImageDesc &desc)
     createInfo.tiling = desc.linearTiling ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
     createInfo.usage = desc.usageFlags;
     VkImage createdImage{VK_NULL_HANDLE};
-    if (VKCALL_FAILED(vkCreateImage(pDevice->GetHandle(), &createInfo, nullptr, &createdImage)))
+    VkResult result = vkCreateImage(_pDevice->GetHandle(), &createInfo, nullptr, &createdImage);
+    if (VKCALL_FAILED(result))
     {
-        LOGE("Device({}) create image error!", (void *)pDevice);
+        LOGE("Device({}) create image error({})!", (void *)_pDevice, result);
         return false;
     }
 
     VkMemoryRequirements memReq{};
-    vkGetImageMemoryRequirements(pDevice->GetHandle(), createdImage, &memReq);
+    vkGetImageMemoryRequirements(_pDevice->GetHandle(), createdImage, &memReq);
     VkDeviceMemory allocedMem{VK_NULL_HANDLE};
-    if (!pDevice->AllocMemory(memReq, desc.memFlags, &allocedMem))
+    if (!_pDevice->AllocMemory(memReq, desc.memFlags, &allocedMem))
     {
-        vkDestroyImage(pDevice->GetHandle(), createdImage, nullptr);
-        LOGE("Device({}) alloc memory error!", (void *)pDevice);
+        vkDestroyImage(_pDevice->GetHandle(), createdImage, nullptr);
         return false;
     }
 
-    if (VKCALL_FAILED(vkBindImageMemory(pDevice->GetHandle(), createdImage, allocedMem, 0)))
+    result = vkBindImageMemory(_pDevice->GetHandle(), createdImage, allocedMem, 0);
+    if (VKCALL_FAILED(result))
     {
-        vkDestroyImage(pDevice->GetHandle(), createdImage, nullptr);
-        pDevice->FreeMemory(allocedMem);
-        LOGE("Image({}) memory({}) bind error!", (void *)createdImage, (void *)allocedMem);
+        vkDestroyImage(_pDevice->GetHandle(), createdImage, nullptr);
+        _pDevice->FreeMemory(allocedMem);
+        LOGE("Image({}) memory({}) bind error({})!", (void *)createdImage, (void *)allocedMem, result);
         return false;
     }
 
-    m_pDevice = pDevice;
     m_vkImage = createdImage;
     m_ImageMem = allocedMem;
     m_Desc = desc;
@@ -76,9 +71,13 @@ void Image::Release()
         }
     }
 
-    vkDestroyImage(m_pDevice->GetHandle(), m_vkImage, nullptr);
-    m_pDevice->FreeMemory(m_ImageMem);
-    Reset();    
+    vkDestroyImage(_pDevice->GetHandle(), m_vkImage, nullptr);
+    _pDevice->FreeMemory(m_ImageMem);
+    VKHANDLE_SET_NULL(m_vkImage);
+    VKHANDLE_SET_NULL(m_ImageMem);
+    m_MemSz = 0;
+    m_Desc = {};
+    m_views.clear();
 }
 
 VkImageView Image::CreateView(VkImageViewType viewType, VkImageAspectFlags viewAspect, uint32_t baseArrayLayer, uint32_t layerCnt, uint32_t baseMipLevel, uint32_t levelCnt )
@@ -97,7 +96,7 @@ VkImageView Image::CreateView(VkImageViewType viewType, VkImageAspectFlags viewA
     createInfo.subresourceRange.levelCount = levelCnt;
     
     VkImageView createView{VK_NULL_HANDLE};
-    if (VKCALL_FAILED(vkCreateImageView(m_pDevice->GetHandle(), &createInfo, nullptr, &createView)))
+    if (VKCALL_FAILED(vkCreateImageView(_pDevice->GetHandle(), &createInfo, nullptr, &createView)))
     {
         LOGE("Image({}) create view error!", (void*)this);
         return VK_NULL_HANDLE;
@@ -120,12 +119,12 @@ bool Image::DestroyView(VkImageView view)
         return false;
     }
 
-    vkDestroyImageView(m_pDevice->GetHandle(), view, nullptr);
+    vkDestroyImageView(_pDevice->GetHandle(), view, nullptr);
     m_views.erase(pos);
     return true;
 }
 
 VkDevice Image::GetDeviceHandle() const
 {
-    return m_pDevice->GetHandle();
+    return _pDevice->GetHandle();
 }

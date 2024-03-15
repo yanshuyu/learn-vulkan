@@ -3,8 +3,8 @@
 #include<vector>
 #include"CoreUtils.h"
 #include"core\IMapAccessMemory.h"
+#include"VKDeviceResource.h"
 
-class Device;
 
 struct BufferDesc
 {
@@ -20,32 +20,25 @@ struct BufferDesc
 
 
 
-class Buffer : public IMapAccessMemory
+class Buffer : public IMapAccessMemory, VKDeviceResource
 {
     friend class Device;
 
 private:
-    Device* _Device{nullptr};
     BufferDesc _Desc{};
     VkBuffer _Buffer{VK_NULL_HANDLE};
     VkDeviceMemory _BufferMem{VK_NULL_HANDLE};
 
 protected:
-    void Reset()
-    {
-        _Device = nullptr;
-        _Desc = {};
-        VKHANDLE_SET_NULL(_Buffer);
-        VKHANDLE_SET_NULL(_BufferMem);
-    }
+    bool _create(BufferDesc desc);
+    void Release() override;
 
 public:
-    Buffer():IMapAccessMemory() {}
+    Buffer(Device* pDevice = nullptr);
     ~Buffer() { assert(!IsValid()); }
 
     NONE_COPYABLE_NONE_MOVEABLE(Buffer)
 
-    Device* GetDevice() const { return _Device; }
     VkDevice GetDeviceHandle() const override;
     VkDeviceMemory GetMemory() const override { return _BufferMem; }
     uint32_t GetMemorySize() const override { return _Desc.size; }
@@ -53,10 +46,6 @@ public:
     VkBuffer GetHandle() const { return _Buffer; }
     BufferDesc GetDesc() const {return _Desc; }
 
-    bool Create(Device* pDevice, BufferDesc desc);
-    bool IsValid() const { return _Device != nullptr && VKHANDLE_IS_NOT_NULL(_Buffer) && VKHANDLE_IS_NOT_NULL(_BufferMem); }
-    void Release();
-
+    bool IsValid() const override { return  VKHANDLE_IS_NOT_NULL(_Buffer) && VKHANDLE_IS_NOT_NULL(_BufferMem); }
     bool CanMap() const override { return IsValid() && IMapAccessMemory::CanMap(); }
-
 };

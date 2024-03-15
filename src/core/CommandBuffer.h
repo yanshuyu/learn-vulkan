@@ -1,12 +1,13 @@
 #pragma once
 #include<vulkan\vulkan.h>
 #include"core\CoreUtils.h"
+#include"core\VKDeviceResource.h"
 
-class Device;
+
 class Buffer;
 class Fence;
 
-class CommandBuffer
+class CommandBuffer : public VKDeviceResource
 {
     friend class Device;
 public:
@@ -19,36 +20,34 @@ public:
     };
 
 private:
-    Device* _pDevice {nullptr};
     VkCommandPool _vkCmdPool{VK_NULL_HANDLE};
     VkQueue _vkQueue{VK_NULL_HANDLE};
     VkCommandBuffer _vkCmdBuffer{VK_NULL_HANDLE};
     bool _temprary{true};
     State _state { State::Invalid};
 
-    void SetUp(Device* pDevice, VkCommandPool cmdPool, VkQueue exeQueue, VkCommandBuffer cmdBuf, bool isTemp);
-    void ClenUp();
-    bool Execute(Fence* fence);
+    bool _create(VkCommandPool cmdPool, VkQueue exeQueue, bool isTemp);
+    bool _execute(Fence* fence);
+    void Release() override;
+
 public:
-    CommandBuffer(){};
-    ~CommandBuffer();
+    CommandBuffer(Device* pDevice = nullptr);
+    ~CommandBuffer() { assert(!IsValid()); }
 
     NONE_COPYABLE_NONE_MOVEABLE(CommandBuffer)
 
-    Device* GetDevice() const { return _pDevice; }
     VkCommandPool GetPoolHandle() const { return _vkCmdPool; }
     VkCommandBuffer GetHandle() const { return _vkCmdBuffer; }
     VkQueue GetQueueHandle() const { return _vkQueue; }
     
     bool IsTemprary() const { return _temprary; }
-    bool IsVaild() const;
-    bool CanExecute() const { return IsVaild() && !_temprary && _state == State::Executable; }
+    bool IsValid() const override;
+    bool CanExecute() const { return IsValid() && !_temprary && _state == State::Executable; }
     bool Begin();
     bool End();
-    bool ExecuteSync() { return Execute(nullptr); }
-    bool ExecuteAsync(Fence* fence) { return Execute(fence); }
+    bool ExecuteSync() { return _execute(nullptr); }
+    bool ExecuteAsync(Fence* fence) { return _execute(fence); }
     bool Reset();
-
     bool CopyBuffer(const Buffer* src,
                       size_t srcOffset,
                       Buffer* dst,

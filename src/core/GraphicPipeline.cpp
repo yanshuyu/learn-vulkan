@@ -4,11 +4,20 @@
 #include<iostream>
 #include"core\Device.h"
 #include"core\ShaderProgram.h"
+#include"core\RenderPass.h"
+#include"rendering\Mesh.h"
 
-GraphicPipeline::GraphicPipeline(Device* pDevice)
+GraphicPipeline::GraphicPipeline(Device* pDevice, ShaderProgram* program, Mesh* mesh, RenderPass* renderPass, uint32_t subPass)
 : m_pDevice(pDevice)
+, m_AssociateProgram(program)
+, m_AssociateMesh(mesh)
+, m_AssociateRenderPass(renderPass)
+, m_AssociateSubpass(subPass)
 {
     assert(pDevice && pDevice->IsValid());
+    assert(program && program->IsValid());
+    assert(mesh && mesh->IsValid());
+    assert(renderPass);
     ResetDefaultStates();
 }
 
@@ -16,9 +25,13 @@ GraphicPipeline::~GraphicPipeline()
 {
     Release();
     m_pDevice = nullptr;
+    m_AssociateProgram = nullptr;
+    m_AssociateMesh = nullptr;
+    m_AssociateRenderPass = VK_NULL_HANDLE;
+    m_AssociateSubpass = 0;
 }
 
-
+/*
 void GraphicPipeline::VISetBinding(uint32_t location, uint32_t stride, VkVertexInputRate rate)
 {
     auto pos = std::find_if(m_VIBindingDesc.begin(), m_VIBindingDesc.end(), [=](const VkVertexInputBindingDescription &bindingDesc)
@@ -60,7 +73,7 @@ void GraphicPipeline::IASetTopology(VkPrimitiveTopology pt, bool ptRestarted)
     m_IADesc.topology = pt;
     m_IADesc.primitiveRestartEnable = ptRestarted;
 }
-
+*/
 
 void GraphicPipeline::VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D scissorRect)
 {
@@ -102,10 +115,7 @@ void GraphicPipeline::VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D s
  {
     m_DynamicStates.clear();
 
-    m_VIBindingDesc.clear();
-    m_VIAttrsDesc.clear();
-
-    m_IADesc = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    //m_IADesc = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
 
     m_Viewport.x = m_Viewport.y = 0;
     m_Viewport.width = m_Viewport.height = 00;
@@ -256,26 +266,61 @@ int GraphicPipeline::MSGetSampleCount() const
 
 
 
-bool GraphicPipeline::Create(ShaderProgram* program, VkRenderPass renderPass, uint32_t subPass)
+bool GraphicPipeline::Apply()
 {
-    if (IsCreate())
+    if (IsValid())
         return true;
 
-    if (program == nullptr || !program->IsValid())
-        return false;
-
     // vertex input
+    // mesh attributes
+    std::vector<VkVertexInputBindingDescription> viBindingDesc{};
+    viBindingDesc.reserve(m_AssociateMesh->GetAttributeCount());
+    for (size_t i = 0; i < MaxAttribute; i++)
+    {
+        Attribute attr = (Attribute)i;
+        if (m_AssociateMesh->HasAttribute(attr))
+        {
+            VkVertexInputBindingDescription bindingDesc{};
+            bindingDesc.binding = m_AssociateMesh->GetAttributeBinding(attr);
+            bindingDesc.stride = m_AssociateMesh->GetAttributeStride(attr);
+            bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+            viBindingDesc.push_back(bindingDesc);
+        }
+    }
+    // shader access attributes
+    std::vector<VkVertexInputAttributeDescription> viAttrsDesc{};
+    viAttrsDesc.reserve(m_AssociateProgram->GetAttributeCount());
+    for (auto &&attrInfo : m_AssociateProgram->GetAttributes())
+    {
+        if (!m_AssociateMesh->HasAttribute(attrInfo.attrType))
+        {
+            LOGW("Shader Program({}) access attribute({}), is not exsit in mesh({})", m_AssociateProgram->GetName(), attrInfo.attrType, m_AssociateMesh->GetName());
+            continue;
+        }
+
+        VkVertexInputAttributeDescription attrDesc{};
+        attrDesc.binding = m_AssociateMesh->GetAttributeBinding(attrInfo.attrType);
+        attrDesc.format = m_AssociateMesh->GetAttributeFormat(attrInfo.attrType);
+        attrDesc.location = attrInfo.location;
+        attrDesc.offset = 0;
+        viAttrsDesc.push_back(attrDesc);
+    }
+    
+    
     VkPipelineVertexInputStateCreateInfo viInfo{};
     viInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     viInfo.flags = 0;
     viInfo.pNext = 0;
-    viInfo.vertexBindingDescriptionCount = m_VIBindingDesc.size();
-    viInfo.pVertexBindingDescriptions = m_VIBindingDesc.data();
-    viInfo.vertexAttributeDescriptionCount = m_VIAttrsDesc.size();
-    viInfo.pVertexAttributeDescriptions = m_VIAttrsDesc.data();
+    viInfo.vertexBindingDescriptionCount = viBindingDesc.size();
+    viInfo.pVertexBindingDescriptions = viBindingDesc.data();
+    viInfo.vertexAttributeDescriptionCount = viAttrsDesc.size();
+    viInfo.pVertexAttributeDescriptions = viAttrsDesc.data();
 
     // input assembler
-    //...
+    VkPipelineInputAssemblyStateCreateInfo iaInfo{};
+    iaInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    iaInfo.topology = m_AssociateMesh->GetTopology();
+    iaInfo.primitiveRestartEnable = false;
 
     // view port & senssior
     VkPipelineViewportStateCreateInfo viewportScissorInfo{};
@@ -298,6 +343,7 @@ bool GraphicPipeline::Create(ShaderProgram* program, VkRenderPass renderPass, ui
     //...
 
     // blending
+    assert(m_AssociateRenderPass->GetSubPassOutputColorAttachmentCount(m_AssociateSubpass) == m_FBAttchmentStates.size());
     VkPipelineColorBlendStateCreateInfo fbInfo{};
     fbInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     fbInfo.flags = 0;
@@ -317,7 +363,7 @@ bool GraphicPipeline::Create(ShaderProgram* program, VkRenderPass renderPass, ui
     createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;;
     createInfo.pDynamicState = &dyStateInfo;
     createInfo.pVertexInputState = &viInfo;;
-    createInfo.pInputAssemblyState = &m_IADesc;
+    createInfo.pInputAssemblyState = &iaInfo;
     createInfo.pViewportState = &viewportScissorInfo;
     createInfo.pMultisampleState = &m_MSDesc;
     createInfo.pRasterizationState = &m_RSCreateInfo;
@@ -326,23 +372,23 @@ bool GraphicPipeline::Create(ShaderProgram* program, VkRenderPass renderPass, ui
 
     
     // programmable function stages
-    std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos(program->GetShaderStageCount());
-    for (size_t i = 0; i < program->GetShaderStageCount(); i++)
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos(m_AssociateProgram->GetShaderStageCount());
+    for (size_t i = 0; i < m_AssociateProgram->GetShaderStageCount(); i++)
     {
-        ShaderStageInfo stageInfo = program->GetShaderStageInfo(i);
+        const ShaderStageInfo& stageInfo = m_AssociateProgram->GetShaderStageInfo(i);
         shaderStageCreateInfos[i].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStageCreateInfos[i].stage = stageInfo.stage;
         shaderStageCreateInfos[i].module = stageInfo.shaderMoudle;
         shaderStageCreateInfos[i].pName = stageInfo.pEntryName.c_str();
     }
-    createInfo.stageCount = program->GetShaderStageCount();
+    createInfo.stageCount = m_AssociateProgram->GetShaderStageCount();
     createInfo.pStages = shaderStageCreateInfos.data();
     createInfo.pTessellationState = nullptr;
     // pipeline access shader resource
-    createInfo.layout = program->GetPipelineLayout();
+    createInfo.layout = m_AssociateProgram->GetPipelineLayout();
     // compatible render pass
-    createInfo.renderPass = renderPass;
-    createInfo.subpass = subPass;
+    createInfo.renderPass = m_AssociateRenderPass->GetHandle();
+    createInfo.subpass = m_AssociateSubpass;
     //other
     createInfo.basePipelineHandle = VK_NULL_HANDLE;
     createInfo.basePipelineIndex = 0;
@@ -359,13 +405,20 @@ bool GraphicPipeline::Create(ShaderProgram* program, VkRenderPass renderPass, ui
     }
     m_Pipeline = createdPipeline;
 
+    // when pipeline is created shader moudles are not need any more (maybe others pipeline still need same program)
+    //program->ReleaseShaderMoudles();
+
     return true;
 }
 
+VkPipelineLayout GraphicPipeline::GetLayoutHandle() const
+{
+    return IsValid() ? m_AssociateProgram->GetPipelineLayout() : VK_NULL_HANDLE;
+}
 
 void GraphicPipeline::Release()
 {
-    if (IsCreate())
+    if (IsValid())
     {
         vkDestroyPipeline(m_pDevice->GetHandle(), m_Pipeline, nullptr);
         ResetDefaultStates();

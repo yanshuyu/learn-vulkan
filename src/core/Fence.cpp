@@ -1,37 +1,27 @@
 #include"core\Fence.h"
 #include"core\Device.h"
 
-Fence::Fence(Device* pDevice, bool signaled)
-: _pDevice(pDevice)
+Fence::Fence(Device* pDevice)
+: VKDeviceResource(pDevice)
 {
-    VkFenceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    createInfo.pNext = nullptr;
+}
+
+ bool Fence::_create(bool signaled)
+ {
+    VkFenceCreateInfo createInfo{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
     createInfo.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
-    VkResult result = vkCreateFence(_pDevice->GetHandle(), &createInfo, nullptr, &_vkFence);
+    VkFence createdFence{VK_NULL_HANDLE};
+    VkResult result = vkCreateFence(_pDevice->GetHandle(), &createInfo, nullptr, &createdFence);
     if (result != VK_SUCCESS)
+    {    
         LOGE("Create Fence Error: {}", result);
-}
+        return false;
+    }
 
-Fence::Fence(Fence&& rval)
-{
-    _pDevice = rval._pDevice;
-    _vkFence = rval._vkFence;
-    rval._pDevice = nullptr;
-    VKHANDLE_SET_NULL(rval._vkFence);
-}
+    _vkFence = createdFence;
+    return true;
+ }
 
-
-Fence& Fence::operator = (Fence&& rval)
-{
-   if (this != &rval)
-   {
-        std::swap(_pDevice, rval._pDevice);
-        std::swap(_vkFence, rval._vkFence);
-   }
-
-   return *this;
-}
 
 void Fence::Reset() const
 {
@@ -62,7 +52,6 @@ void Fence::Release()
     if (IsValid())
     {
         vkDestroyFence(_pDevice->GetHandle(), _vkFence, nullptr);
-        _pDevice = nullptr;
         VKHANDLE_SET_NULL(_vkFence);
     }
 }

@@ -16,37 +16,19 @@ ShaderProgram::~ShaderProgram()
 }
 
 
-bool ShaderProgram::AddShader(const char* srcFile, const char* entryPoint, VkShaderStageFlagBits shaderStage)
+bool ShaderProgram::AddShader(const ShaderStageInfo& shaderInfo)
 {
     if (IsValid())
         return false;
     
-    std::ifstream fs(srcFile, std::ios_base::ate);
-    if (!fs.is_open())
-        return false;
+    auto pos = std::find_if(_shaders.begin(), _shaders.end(), [&](const ShaderStageInfo& _shaderInfo){
+        return _shaderInfo.stage == shaderInfo.stage;
+    });
     
-    size_t srcSz = fs.tellg();
-    fs.seekg(std::ios_base::beg);
-    std::vector<char> spvSrc(srcSz);
-    fs.read(spvSrc.data(), srcSz);
-    fs.close();
-
-    VkShaderModule shaderMou{VK_NULL_HANDLE};
-    VkShaderModuleCreateInfo shaderMouCreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    shaderMouCreateInfo.pCode = (uint32_t*) spvSrc.data();
-    shaderMouCreateInfo.codeSize = srcSz;
-    if (VKCALL_FAILED(vkCreateShaderModule(_pDevice->GetHandle(), &shaderMouCreateInfo, nullptr, &shaderMou)))
-    {
-        _release_shaders();
+    if (pos != _shaders.end())
         return false;
-    }
 
-    ShaderStageInfo shaderInfo{};
-    shaderInfo.shaderMoudle = shaderMou;
-    shaderInfo.pEntryName = entryPoint;
-    shaderInfo.stage = shaderStage;
-    _shaders.push_back(shaderInfo);
-    
+    _shaders.push_back(shaderInfo);    
     return true;
 }
 
@@ -75,6 +57,26 @@ bool ShaderProgram::GetShaderStageInfo(VkShaderStageFlagBits stage, ShaderStageI
     return true;
 }
 
+
+bool ShaderProgram::AddAttribute(Attribute attr, size_t location)
+{
+    auto itr = std::find_if(_attrInfos.begin(), _attrInfos.end(), [=](const VertexAttributeInfo& attrInfo)
+    {
+        return attrInfo.attrType == attr;
+    });
+
+    if (itr == _attrInfos.end())
+    {
+        VertexAttributeInfo attrInfo{};
+        attrInfo.attrType = attr;
+        attrInfo.location = location;
+        _attrInfos.push_back(attrInfo);
+    }
+    
+    return false;    
+}
+
+
 bool ShaderProgram::AddResourceBinding(size_t setIdx,
                                        size_t bindingLocation,
                                        VkDescriptorType resourceType,
@@ -87,8 +89,8 @@ bool ShaderProgram::AddResourceBinding(size_t setIdx,
     auto setItr = _setLayoutBindings.find(setIdx);
     if (setItr == _setLayoutBindings.end())
     {
-        _setLayoutBindings.insert(std::make_pair(setIdx, std::vector<VkDescriptorSetLayoutBinding>()));
-        setItr = _setLayoutBindings.find(setIdx);
+        auto result = _setLayoutBindings.insert(std::make_pair(setIdx, std::vector<VkDescriptorSetLayoutBinding>()));
+        setItr = result.first;
     }
 
     auto bindingItr = std::find_if(setItr->second.begin(), setItr->second.end(), [=](const VkDescriptorSetLayoutBinding& binding)
@@ -98,11 +100,8 @@ bool ShaderProgram::AddResourceBinding(size_t setIdx,
 
     if (bindingItr == setItr->second.end())
     {
-        setItr->second.push_back({});
-        bindingItr = setItr->second.end();
-        bindingItr--;
+         bindingItr = setItr->second.emplace(setItr->second.end());
     }
-
     bindingItr->binding = bindingLocation;
     bindingItr->descriptorType = resourceType;
     bindingItr->descriptorCount = resourceArrayElementCnt;
@@ -114,10 +113,11 @@ bool ShaderProgram::AddResourceBinding(size_t setIdx,
 
 
 
-bool ShaderProgram::Create()
+bool ShaderProgram::Apply()
 {
     // create decriptor set layout
     _setLayouts.resize(_setLayoutBindings.size(), VK_NULL_HANDLE);
+    _layoutIdxToSetIdx.resize(_setLayoutBindings.size(), -1);
     size_t idx = 0;
     for (auto &&setLayoutBindings : _setLayoutBindings)
     {
@@ -134,6 +134,7 @@ bool ShaderProgram::Create()
         _setLayouts[idx] = createdSetLayout;
         _setIdxToLayoutIdx[setLayoutBindings.first] = idx;
         _layoutIdxToSetIdx[idx] = setLayoutBindings.first;
+        idx++;
     }
     
     // create pipeline layout
@@ -150,25 +151,29 @@ bool ShaderProgram::Create()
 }
 
 
-    
- std::vector<size_t> ShaderProgram::GetResourceSetIndices() const
- {
-    std::vector<size_t> setIndices{};
-    setIndices.reserve(_layoutIdxToSetIdx.size());
-    for (auto &&layoutIdxToSetIdx : _layoutIdxToSetIdx)
-        setIndices.push_back(layoutIdxToSetIdx.second);
-    
-    return std::move(setIndices);
- }
-
 
 void ShaderProgram::Release()
 {
+    ReleaseShaderMoudles();
+
     if (!IsValid())
         return;
-
+        
     _release_layouts();
     _release_shaders();
+}
+
+
+void ShaderProgram::ReleaseShaderMoudles()
+{
+    for (size_t i = 0; i < _shaders.size(); i++)
+    {
+        if (VKHANDLE_IS_NOT_NULL(_shaders[i].shaderMoudle))
+        {
+            vkDestroyShaderModule(_pDevice->GetHandle(), _shaders[i].shaderMoudle, nullptr);
+            VKHANDLE_SET_NULL(_shaders[i].shaderMoudle);
+        }
+    }
 }
 
 void ShaderProgram::_release_layouts()

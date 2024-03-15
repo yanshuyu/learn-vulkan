@@ -3,22 +3,18 @@
 #include<algorithm>
 
 
-VkDevice Buffer::GetDeviceHandle() const 
-{ 
-    return _Device->GetHandle(); 
+Buffer::Buffer(Device* pDevice): VKDeviceResource(pDevice), IMapAccessMemory()
+{
+
 }
 
-bool Buffer::Create(Device* pDevice, BufferDesc desc)
+VkDevice Buffer::GetDeviceHandle() const 
+{ 
+    return _pDevice->GetHandle(); 
+}
+
+bool Buffer::_create(BufferDesc desc)
 {
-    if (IsValid())
-        return false;
-
-    if (pDevice == nullptr || !pDevice->IsValid())
-    {
-        LOGE("Try to create Buffer with an invalid Device instance!");
-        return false;
-    }
-
     VkBufferCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     createInfo.pNext = nullptr;
@@ -29,35 +25,33 @@ bool Buffer::Create(Device* pDevice, BufferDesc desc)
     createInfo.queueFamilyIndexCount = 0;
     createInfo.pQueueFamilyIndices = nullptr;
     
-  
     VkBuffer createdBuffer = VK_NULL_HANDLE;
-    VkResult result = vkCreateBuffer(pDevice->GetHandle(), &createInfo, nullptr, &createdBuffer);
+    VkResult result = vkCreateBuffer(_pDevice->GetHandle(), &createInfo, nullptr, &createdBuffer);
     if (result != VK_SUCCESS)
     {
-       LOGE("Device({}) Create Buffer error: {}", (void*)pDevice, result);
+        LOGE("Device({}) Create Buffer error: {}", (void*)_pDevice, result);
         return false;
     }
 
     VkMemoryRequirements memReq{};
-    vkGetBufferMemoryRequirements(pDevice->GetHandle(), createdBuffer, &memReq);
+    vkGetBufferMemoryRequirements(_pDevice->GetHandle(), createdBuffer, &memReq);
     VkDeviceMemory allocedMem = VK_NULL_HANDLE;
     VkMemoryPropertyFlags memProp = desc.memFlags;
-    if (!pDevice->AllocMemory(memReq, memProp, &allocedMem))
+    if (!_pDevice->AllocMemory(memReq, memProp, &allocedMem))
     {
-        vkDestroyBuffer(pDevice->GetHandle(), createdBuffer, nullptr);
-        LOGE("Device({}) alloc memory error!", (void*)pDevice);
+        vkDestroyBuffer(_pDevice->GetHandle(), createdBuffer, nullptr);
+        LOGE("Device({}) alloc memory error!", (void*)_pDevice);
         return false;
     }
 
-    if(VKCALL_FAILED(vkBindBufferMemory(pDevice->GetHandle(), createdBuffer, allocedMem, 0)))//TODO: does offet need match to memreq's offset ?
+    if(VKCALL_FAILED(vkBindBufferMemory(_pDevice->GetHandle(), createdBuffer, allocedMem, 0)))//TODO: does offet need match to memreq's offset ?
     {
-        vkDestroyBuffer(pDevice->GetHandle(), createdBuffer, nullptr);
-        pDevice->FreeMemory(allocedMem);
+        vkDestroyBuffer(_pDevice->GetHandle(), createdBuffer, nullptr);
+        _pDevice->FreeMemory(allocedMem);
         LOGE("Buffer({}) memory({}) bind error!", (void*)createdBuffer, (void*)allocedMem);
         return false;
     }
 
-    _Device = pDevice;
     _Desc = desc;
     _Buffer = createdBuffer;
     _BufferMem = allocedMem;
@@ -71,7 +65,8 @@ bool Buffer::Create(Device* pDevice, BufferDesc desc)
     if (!IsValid())
         return;
 
-    vkDestroyBuffer(_Device->GetHandle(), _Buffer, nullptr);
-    vkFreeMemory(_Device->GetHandle(), _BufferMem, nullptr);
-    Reset();
+    vkDestroyBuffer(_pDevice->GetHandle(), _Buffer, nullptr);
+    vkFreeMemory(_pDevice->GetHandle(), _BufferMem, nullptr);
+    VKHANDLE_SET_NULL(_Buffer);
+    VKHANDLE_SET_NULL(_BufferMem);
   }

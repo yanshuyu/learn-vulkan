@@ -4,50 +4,49 @@
 #include"core\Device.h"
 #include"core\Fence.h"
 
-CommandBuffer::~CommandBuffer()
+CommandBuffer::CommandBuffer(Device* pDevice)
+: VKDeviceResource(pDevice)
 {
-    if (IsVaild())
-    {
-        LOGW("Command Buffer({}) destructed in valid state, may have ressource leak!", (void*)this);
-    }
+
 }
 
 
-void CommandBuffer::SetUp(Device* pDevice, VkCommandPool cmdPool, VkQueue exeQueue, VkCommandBuffer cmdBuf, bool isTemp)
+bool CommandBuffer::_create(VkCommandPool cmdPool, VkQueue exeQueue, bool isTemp)
 {
-    if (IsVaild())
-    {
-        LOGW("Command Buffer({}) is reset up in valid state, may have ressource leak!", (void*)this);
-    }
 
-    _pDevice = pDevice;
+    // alloc one resetable command buffer
+    VkCommandBufferAllocateInfo allocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    allocInfo.pNext = nullptr;
+    allocInfo.commandPool = cmdPool;
+    allocInfo.commandBufferCount = 1;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    VkCommandBuffer cmdBuffer{VK_NULL_HANDLE};
+    VkResult result = vkAllocateCommandBuffers(_pDevice->GetHandle(), &allocInfo, &cmdBuffer);
+    if (result != VK_SUCCESS)
+    {
+        LOGE("Alloc command buffer error: {}", result);
+        return false;
+    }
     _vkCmdPool = cmdPool;
     _vkQueue = exeQueue;
-    _vkCmdBuffer = cmdBuf;
+    _vkCmdBuffer = cmdBuffer;
     _temprary = isTemp;
     _state = State::Initial;
+    return true;
 }
 
-void CommandBuffer::ClenUp()
-{
-    VKHANDLE_SET_NULL(_pDevice);
-    VKHANDLE_SET_NULL(_vkCmdPool);
-    VKHANDLE_SET_NULL(_vkQueue);
-    VKHANDLE_SET_NULL(_vkCmdBuffer);
-    _state = State::Invalid;
-}
 
-bool CommandBuffer::IsVaild() const
+bool CommandBuffer::IsValid() const
 {
-    return _pDevice != nullptr 
-            && VKHANDLE_IS_NOT_NULL(_vkCmdPool) 
+    return VKHANDLE_IS_NOT_NULL(_vkCmdPool) 
             && VKHANDLE_IS_NOT_NULL(_vkQueue) 
-            && VKHANDLE_IS_NOT_NULL(_vkCmdBuffer);
+            && VKHANDLE_IS_NOT_NULL(_vkCmdBuffer)
+            && _state != State::Invalid;
 }
 
 bool CommandBuffer::Begin()
 {
-    if (!IsVaild() || _state != State::Initial)
+    if (!IsValid() || _state != State::Initial)
         return false;
 
     VkCommandBufferBeginInfo begInfo{};
@@ -72,12 +71,13 @@ bool CommandBuffer::Begin()
 
 bool CommandBuffer::End()
 {
-    if (!IsVaild() || _state != State::Recording)
+    if (!IsValid() || _state != State::Recording)
         return false;
     
     VkResult result = vkEndCommandBuffer(_vkCmdBuffer);
     if (result != VK_SUCCESS)
-    {    
+    {   
+        _state = State::Invalid; 
         LOGE("Command Buffer({}) End Error: {}", (void*)this, result);
     }
     else
@@ -88,7 +88,7 @@ bool CommandBuffer::End()
     return result == VK_SUCCESS;
 }
 
-bool CommandBuffer::Execute(Fence* fence)
+bool CommandBuffer::_execute(Fence* fence)
 {
     if (!_temprary)
     {
@@ -96,7 +96,7 @@ bool CommandBuffer::Execute(Fence* fence)
         return false;
     }
 
-    if (!IsVaild() || _state != State::Executable)
+    if (!IsValid() || _state != State::Executable)
         return false;
     
     VkSubmitInfo submitInfo{};
@@ -126,7 +126,10 @@ bool CommandBuffer::Execute(Fence* fence)
 bool CommandBuffer::Reset()
 {
     if (_temprary)
+    {
+        _state = State::Invalid;
         return false;
+    }
 
     VkResult result = vkResetCommandBuffer(_vkCmdBuffer, 0);
     if (result != VK_SUCCESS)
@@ -137,6 +140,18 @@ bool CommandBuffer::Reset()
 
     _state = State::Initial;
     return true;
+}
+
+void CommandBuffer::Release()
+{
+    if (!IsValid())
+        return;
+
+    vkFreeCommandBuffers(_pDevice->GetHandle(), _vkCmdPool, 1, &_vkCmdBuffer);
+    VKHANDLE_SET_NULL(_vkCmdPool);
+    VKHANDLE_SET_NULL(_vkQueue);
+    VKHANDLE_SET_NULL(_vkCmdBuffer);
+    _state = State::Invalid;
 }
 
 bool CommandBuffer::CopyBuffer(const Buffer* src,

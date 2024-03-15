@@ -1,6 +1,7 @@
 #pragma once
 #include"core\CoreUtils.h"
 #include"core\IMapAccessMemory.h"
+#include"core\VKDeviceResource.h"
 
 class Device;
 
@@ -17,12 +18,11 @@ struct ImageDesc
 };
 
 
-class Image : public IMapAccessMemory
+class Image : public IMapAccessMemory, VKDeviceResource
 {
     friend class Device;
 
 private:
-    Device* m_pDevice{nullptr};
     VkImage m_vkImage{VK_NULL_HANDLE};
     VkDeviceMemory m_ImageMem{VK_NULL_HANDLE};
     ImageDesc m_Desc{};
@@ -31,32 +31,21 @@ private:
     std::vector<VkImageView> m_views{};
 
 protected:
-    void Reset()
-    {
-        m_pDevice = nullptr;
-        VKHANDLE_SET_NULL(m_vkImage);
-        VKHANDLE_SET_NULL(m_ImageMem);
-        m_MemSz = 0;
-        m_Desc = {};
-        m_views.clear();
-    }
+    bool _create(const ImageDesc &desc);
+    void Release() override;
 
 public:
-    Image(): IMapAccessMemory() {}
+    Image(Device* pDevice = nullptr);
     ~Image() { assert(!IsValid()); }
 
     NONE_COPYABLE_NONE_MOVEABLE(Image)
 
-    bool Create(Device *pDevice, const ImageDesc &desc);
-    void Release();
     VkImageView CreateView(VkImageViewType viewType, VkImageAspectFlags viewAspect, uint32_t baseArrayLayer, uint32_t layerCnt, uint32_t baseMipLevel, uint32_t levelCnt );
     bool DestroyView(VkImageView view);
-    bool IsValid() const { return m_pDevice != nullptr && VKHANDLE_IS_NOT_NULL(m_vkImage) && VKHANDLE_IS_NOT_NULL(m_ImageMem); }
-
+    bool IsValid() const override { return VKHANDLE_IS_NOT_NULL(m_vkImage) && VKHANDLE_IS_NOT_NULL(m_ImageMem); }
     bool CanMap() const override { return IsValid() && IMapAccessMemory::CanMap() && m_Desc.linearTiling; }
-    Device* GetDevice() const { return m_pDevice; }
-    VkDevice GetDeviceHandle() const override;
     VkImage GetHandle() const { return m_vkImage; }
+    VkDevice GetDeviceHandle() const override;
     VkDeviceMemory GetMemory() const override { return m_ImageMem; }
     VkMemoryPropertyFlags GetMemoryProperties() const override { return m_Desc.memFlags; }
     uint32_t GetMemorySize() const override { return m_MemSz; }

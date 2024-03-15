@@ -3,8 +3,15 @@
 #include"core\Device.h"
 #include"core\SwapChain.h"
 #include"core\CommandBuffer.h"
+#include"core\ShaderProgram.h"
+#include"core\GraphicPipeline.h"
+#include"core\RenderPass.h"
 #include"rendering\Window.h"
 #include"rendering\Mesh.h"
+#include"rendering\AssetsManager.h"
+#include"rendering\DescriptorManager.h"
+#include<glm\gtc\matrix_transform.hpp>
+
 
 ApiSample::ApiSample(const AppDesc& appDesc)
 : Application(appDesc)
@@ -36,16 +43,17 @@ bool ApiSample::Setup()
     assert(VKHANDLE_IS_NOT_NULL(m_GraphicQueue) && VKHANDLE_IS_NOT_NULL(m_PresentQueue));
 
     m_pCmdBuffer = m_pDevice->CreateCommandBuffer(m_GraphicQueue);
-    assert(m_pCmdBuffer->IsVaild());
+    assert(m_pCmdBuffer->IsValid());
     m_CmdBuffer = m_pCmdBuffer->GetHandle();
 
     // render pass
-    if (!CreateRenderPass())
-    {
-        LOGE("-->ApiSample: failed to create render pass!");
-        return false; 
-    }
-    
+    _renderPass.reset(new RenderPass(m_pDevice.get()));
+    _renderPass->AddColorAttachment(m_pSwapChain->GetBufferFormat().format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    _renderPass->AddDepthStencilAttachment(VK_FORMAT_D24_UNORM_S8_UINT);
+    size_t outputAttachments[] = {0 , 1};
+    _renderPass->AddSubPass(outputAttachments, 2);
+    assert(_renderPass->Apply());
+
     // swap chain frame buffers
     if (!CreateSwapChainFrameBuffers())
     {
@@ -53,7 +61,7 @@ bool ApiSample::Setup()
         return false; 
     }
 
-    // mesh
+    // triangle mesh
     glm::vec3 triVerts[3] = {
         {-1, 0, 0},
         {0, 1, 0},
@@ -66,7 +74,7 @@ bool ApiSample::Setup()
         {0, 0, 1, 1},
     };
 
-    Mesh::index_t triIndices[3] = {0, 1, 2};
+    index_t triIndices[3] = {0, 1, 2};
 
     _triangleMesh.reset(new Mesh(m_pDevice.get()));
     _triangleMesh->SetVertices(triVerts, 3);
@@ -74,6 +82,45 @@ bool ApiSample::Setup()
     _triangleMesh->SetIndices(triIndices, 3);
     _triangleMesh->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     assert(_triangleMesh->Apply());
+
+    // vertex color shader program
+    _vertColorProgram = AssetsManager::LoadProgram("vertex_color.vert.spv", "vertex_color.frag.spv");
+
+    // triangle pipeline
+    VkRect2D viewPort{};
+    viewPort.offset = {0, 0};
+    viewPort.extent = {(uint32_t)m_window->GetWidth(),(uint32_t)m_window->GetHeight()};
+    _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _triangleMesh.get(), _renderPass.get()));
+    _trianglePipeline->VSSetViewportScissorRect(viewPort, viewPort);
+    assert(_trianglePipeline->Apply());
+
+    // triangle transform ubo
+    _triangleTransformUBO = m_pDevice->CreateBuffer(sizeof(glm::mat4) * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    float aspectRadio = (float)m_window->GetWidth() / m_window->GetHeight();
+    std::vector<glm::mat4> matrixs(3, glm::mat4(1.f));
+    matrixs[1] = glm::lookAt(glm::vec3(0, 0, -1), glm::vec3(0), glm::vec3(0, 1, 0));
+    matrixs[2] = glm::perspective(glm::radians(30.f), aspectRadio, 0.01f, 100.f);
+    _triangleTransformUBO->Map();
+    _triangleTransformUBO->SetData((uint8_t*)matrixs.data(), sizeof(glm::mat4) * matrixs.size(), 0);
+    _triangleTransformUBO->UnMap();
+    
+    // triangle descriptor sets
+    assert(DescriptorManager::AllocProgramDescriptorSet(_vertColorProgram, _triangleDescriotorSets));
+    // update descriptor set
+    VkDescriptorBufferInfo triangleTransformUBOInfo{};
+    triangleTransformUBOInfo.buffer = _triangleTransformUBO->GetHandle();
+    triangleTransformUBOInfo.offset = 0;
+    triangleTransformUBOInfo.range = _triangleTransformUBO->GetMemorySize();
+
+    VkWriteDescriptorSet triangleTransformUBOWrite{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    triangleTransformUBOWrite.dstSet = _triangleDescriotorSets.at(0);
+    triangleTransformUBOWrite.dstBinding = 0;
+    triangleTransformUBOWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    triangleTransformUBOWrite.dstArrayElement = 0;
+    triangleTransformUBOWrite.descriptorCount = 1;
+    triangleTransformUBOWrite.pBufferInfo = &triangleTransformUBOInfo;
+
+    vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &triangleTransformUBOWrite, 0, nullptr);
 
     return true;
 }
@@ -83,10 +130,19 @@ void ApiSample::Release()
 {
     _triangleMesh->Release();
 
+    m_pDevice->DestroyBuffer(_triangleTransformUBO);
+
+    _trianglePipeline->Release();
+
+    _renderPass->Release();
+
+    DescriptorManager::Release();
+
+    AssetsManager::Release();
+   
     DestroySwapChainFrameBuffers();
 
-    DestroyRenderPass();
-
+  
     if (VKHANDLE_IS_NOT_NULL(m_SwapChainImageAvalible))
     {
         vkDestroySemaphore(m_pDevice->GetHandle(), m_SwapChainImageAvalible, nullptr);
@@ -178,13 +234,25 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
 
     VkRenderPassBeginInfo renderPassBegInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
     renderPassBegInfo.framebuffer = m_SwapChainFrameBuffers[swapChainImageIdx];
-    renderPassBegInfo.renderPass = m_RenderPass;
+    renderPassBegInfo.renderPass = _renderPass->GetHandle();
     renderPassBegInfo.renderArea = renderAera;
     renderPassBegInfo.clearValueCount = 2;
     renderPassBegInfo.pClearValues = clearSettings;
     vkCmdBeginRenderPass(m_CmdBuffer, &renderPassBegInfo, VK_SUBPASS_CONTENTS_INLINE);
    
     // ***************************** draw call cmds **************************************
+    // vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline->GetHandle());
+    // vkCmdBindDescriptorSets(m_CmdBuffer,
+    //                         VK_PIPELINE_BIND_POINT_GRAPHICS,
+    //                         _trianglePipeline->GetLayoutHandle(),
+    //                         0,
+    //                         _triangleDescriotorSets.size(),
+    //                         _triangleDescriotorSets.data(),
+    //                         0,
+    //                         nullptr);
+    // vkCmdBindVertexBuffers(m_CmdBuffer, 0, _triangleMesh->GetAttributeCount(), _triangleMesh->GetAttributeBindingHandls(), 0);
+    // vkCmdBindIndexBuffer(m_CmdBuffer, _triangleMesh->GetIndexBuffer()->GetHandle(), 0, _triangleMesh->GetIndexType());
+    // vkCmdDrawIndexed(m_CmdBuffer, _triangleMesh->GetIndicesCount(), 1, 0, 0, 0);
 
     // ***********************************************************************************
 
@@ -193,63 +261,6 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     VKCALL_THROW_IF_FAILED(vkEndCommandBuffer(m_CmdBuffer), "-->ApiSample Draw: failed to end command buffer!");
 }
 
-
-bool ApiSample::CreateRenderPass()
-{
-    std::vector<VkAttachmentDescription> colorDepthAttachmentsDesc(2);
-    colorDepthAttachmentsDesc[0].format = m_pSwapChain->GetBufferFormat().format;
-    colorDepthAttachmentsDesc[0].samples = VK_SAMPLE_COUNT_1_BIT;
-    colorDepthAttachmentsDesc[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorDepthAttachmentsDesc[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    colorDepthAttachmentsDesc[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorDepthAttachmentsDesc[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorDepthAttachmentsDesc[1].format = VK_FORMAT_D24_UNORM_S8_UINT;
-    colorDepthAttachmentsDesc[1].samples = VK_SAMPLE_COUNT_1_BIT;
-    colorDepthAttachmentsDesc[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorDepthAttachmentsDesc[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    colorDepthAttachmentsDesc[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorDepthAttachmentsDesc[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorDepthAttachmentsDesc[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorDepthAttachmentsDesc[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-    VkSubpassDescription subpassDesc{};
-    VkAttachmentReference colorAttachmentRef{};
-    VkAttachmentReference depthAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    subpassDesc.inputAttachmentCount = 0;
-    subpassDesc.pInputAttachments = nullptr;
-    subpassDesc.colorAttachmentCount = 1;
-    subpassDesc.pColorAttachments = &colorAttachmentRef;
-    subpassDesc.pDepthStencilAttachment = &depthAttachmentRef;
-    subpassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpassDesc.preserveAttachmentCount = 0;
-    subpassDesc.pPreserveAttachments = nullptr;
-    subpassDesc.pResolveAttachments = nullptr;
-
-    VkRenderPassCreateInfo renderPassCreateInfo{VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO};
-    renderPassCreateInfo.attachmentCount = 2;
-    renderPassCreateInfo.pAttachments = colorDepthAttachmentsDesc.data();
-    renderPassCreateInfo.subpassCount = 1;
-    renderPassCreateInfo.pSubpasses = &subpassDesc;
-    renderPassCreateInfo.dependencyCount = 0;
-    renderPassCreateInfo.pDependencies = nullptr;
-
-    return vkCreateRenderPass(m_pDevice->GetHandle(), &renderPassCreateInfo, nullptr, &m_RenderPass) == VK_SUCCESS;
-}
-
-
-void ApiSample::DestroyRenderPass()
-{
-    if (VKHANDLE_IS_NOT_NULL(m_RenderPass))
-    {
-        vkDestroyRenderPass(m_pDevice->GetHandle(), m_RenderPass, nullptr);
-        VKHANDLE_SET_NULL(m_RenderPass);
-    }
-}
 
 
 bool ApiSample::CreateSwapChainFrameBuffers()
@@ -308,7 +319,7 @@ bool ApiSample::CreateSwapChainFrameBuffers()
     {
         VkFramebufferCreateInfo fbCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
         VkImageView fbAttachments[2]{m_pSwapChain->GetBufferView(i), m_DepthBufferView};
-        fbCreateInfo.renderPass = m_RenderPass;
+        fbCreateInfo.renderPass = _renderPass->GetHandle();
         fbCreateInfo.width = m_pSwapChain->GetBufferSize().width;
         fbCreateInfo.height = m_pSwapChain->GetBufferSize().height;
         fbCreateInfo.layers = 1;
@@ -355,3 +366,6 @@ void ApiSample::DestroySwapChainFrameBuffers()
     }
     
 }
+
+
+

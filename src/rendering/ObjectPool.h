@@ -11,7 +11,7 @@ private:
     std::function<void(T*)> _getOp;
     std::function<void(T*)> _retOp;
     std::function<T*()> _newOp;
-    std::function<void(T*)> _releaseOp;
+    std::function<void(T*)> _deleteOp;
 
     T* DefaultCreate() { return new T(); }
     void DefaultDelect(T* obj) { delete obj; } 
@@ -19,13 +19,18 @@ public:
     ObjectPool(std::function<void(T*)> getOp = nullptr,
                std::function<void(T*)> retOp = nullptr,
                std::function<T*()> newOp = nullptr,
-               std::function<void(T*)> releaseOp = nullptr)
-        : _getOp(getOp), _retOp(retOp), _newOp(newOp), _releaseOp(releaseOp)
+               std::function<void(T*)> deleteOp = nullptr)
+        : _getOp(getOp), _retOp(retOp), _newOp(newOp), _deleteOp(deleteOp)
     {
     }
 
     ~ObjectPool() { CleanUp(); }
 
+    ObjectPool(const ObjectPool&) = delete;
+    ObjectPool(ObjectPool&&) = delete;
+    ObjectPool& operator = (const ObjectPool&) = delete;
+    ObjectPool& operator = (ObjectPool&&) = delete;
+    
     T* Get()
     {
         T* obj{nullptr};
@@ -58,8 +63,8 @@ public:
 
     void Release(T* obj)
     {
-        if (_releaseOp)
-            _releaseOp(obj);
+        if (_deleteOp)
+            _deleteOp(obj);
         else
             DefaultDelect(obj);
     }

@@ -5,9 +5,31 @@
 #include<utility>
 #include<set>
 
-
-
 Device::Device()
+    : _BufferPool(
+          nullptr,
+          [](Buffer *pBuffer)
+          { assert(!pBuffer->IsValid()); },
+          [this]()
+          { return new Buffer(this); }),
+      _CmdBufPool(
+          nullptr,
+          [](CommandBuffer *pCmdBuf)
+          { assert(!pCmdBuf->IsValid()); },
+          [this]()
+          { return new CommandBuffer(this); }),
+      _FencePool(
+          nullptr,
+          [](Fence *pFence)
+          { assert(!pFence->IsValid()); },
+          [this]()
+          { return new Fence(this); }),
+      _ImagePool(
+          nullptr,
+          [](Image *pImg)
+          { assert(!pImg->IsValid()); },
+          [this]()
+          { return new Image(this); })
 {
     for (size_t i = 0; i < QueueFamilyIndices::MAX_INDEX; i++)
     {
@@ -67,6 +89,7 @@ void Device::Release()
 
     _CmdBufPool.CleanUp();
     _BufferPool.CleanUp();
+    _FencePool.CleanUp();
     _ImagePool.CleanUp();
 
     // destory command pool will destroy command buffers allocate from it
@@ -111,21 +134,12 @@ void Device::WaitIdle() const
 
 bool Device::DestroyCommandBuffer(CommandBuffer* pCmdBuf)
 {
-    if (pCmdBuf == nullptr)
-        return false;
-    
-    if (pCmdBuf->IsVaild())
-        return false;
-
     if (pCmdBuf->GetDevice() != this)
     {
         LOGW("Try to release a command buffer({}) create by device({}) with diffrence device({})!", (void*)pCmdBuf, (void*)pCmdBuf->GetDevice(), (void*)this);
         return false;
     }
-
-    VkCommandBuffer cmdbuf = pCmdBuf->GetHandle();
-    vkFreeCommandBuffers(m_vkDevice, pCmdBuf->GetPoolHandle(), 1, &cmdbuf);
-    pCmdBuf->ClenUp();
+    pCmdBuf->Release();
     _CmdBufPool.Return(pCmdBuf);
 
     return true;
@@ -371,21 +385,21 @@ Buffer* Device::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemo
     desc.size = size;
     desc.usage = usage;
     desc.memFlags = memProp;
-    Buffer *newBuffer = _BufferPool.Get();
-    if (!newBuffer->Create(this, desc))
-    {
-        newBuffer->Reset();
-        _BufferPool.Return(newBuffer);
-        return nullptr;
-    }
-
-    return newBuffer;
+    Buffer *pBuf = _BufferPool.Get();
+    assert(pBuf->_create(desc));
+    return pBuf;
 }
 
-void Device::DestroyBuffer(Buffer* pBuffer)
+bool Device::DestroyBuffer(Buffer* pBuffer)
 {
+    if (pBuffer->GetDevice() != this)
+    {
+        LOGW("Try to release a Buffer({}) create by device({}) with diffrence device({})!", (void*)pBuffer, (void*)pBuffer->GetDevice(), (void*)this);
+        return false;
+    }
     pBuffer->Release();
     _BufferPool.Return(pBuffer);
+    return true;
 }
 
 Image *Device::CreateImage(VkFormat fmt,
@@ -415,21 +429,22 @@ Image *Device::CreateImage(VkFormat fmt,
     desc.memFlags = memProp;
     desc.usageFlags = usage;
 
-    Image* pImage = _ImagePool.Get();
-    if (!pImage->Create(this, desc))
-    {   
-        pImage->Reset();
-        _ImagePool.Return(pImage);
-        return nullptr;
-    }
-
+    Image* pImage = _ImagePool.Get(); 
+    assert(pImage->_create(desc));
     return pImage;
 }
 
-void Device::DestroyImage(Image *pImage)
+bool Device::DestroyImage(Image *pImage)
 {
+    if (pImage->GetDevice() != this)
+    {
+        LOGW("Try to release a Image({}) create by device({}) with diffrence device({})!", (void*)pImage, (void*)pImage->GetDevice(), (void*)this);
+        return false;
+    }
+
     pImage->Release();
     _ImagePool.Return(pImage);
+    return true;
 }
 
 Fence* Device::CreateFence(bool signaled)
@@ -440,19 +455,20 @@ Fence* Device::CreateFence(bool signaled)
         return nullptr;
     }
 
-    Fence* pFence = new Fence(this, signaled);
-    _Fences.push_back(pFence);
-    return pFence;
+    Fence* fence = _FencePool.Get();
+    assert(fence->_create(signaled));
+    return fence;
 }
 
 bool Device::DestroyFence(Fence* pFence)
 {
-    auto pos = std::find(_Fences.begin(), _Fences.end(), pFence);
-    if (pos == _Fences.end())
+    if (pFence->GetDevice() != this)
+    {
+        LOGW("Try to release a Fence({}) create by device({}) with diffrence device({})!", (void*)pFence, (void*)pFence->GetDevice(), (void*)this);
         return false;
-    
-    _Fences.erase(pos);
-    delete pFence;
+    }
+    pFence->Release();
+    _FencePool.Return(pFence);
 
     return true;
 }
@@ -510,23 +526,8 @@ CommandBuffer* Device::CreateCommandBufferImp(VkQueue queue, bool temprary)
     
     // alloc one resetable command buffer
     VkCommandPool pool = temprary ? m_DeviceQueueCmdPools[keyIdx * 2 + 1] : m_DeviceQueueCmdPools[keyIdx * 2];
-    VkCommandBufferAllocateInfo allocInfo{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
-    allocInfo.pNext = nullptr;
-    allocInfo.commandPool = pool;
-    allocInfo.commandBufferCount = 1;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    VkCommandBuffer cmdBuffer{VK_NULL_HANDLE};
-    VkResult result = vkAllocateCommandBuffers(m_vkDevice, &allocInfo, &cmdBuffer);
-    if (result != VK_SUCCESS)
-    {
-        char str[256];
-        sprintf(str, "Alloc command buffer error: %d", result);
-        throw std::runtime_error(str);
-    }
-
     CommandBuffer* pCmdBuf = _CmdBufPool.Get();
-    pCmdBuf->SetUp(this, pool, queue, cmdBuffer, temprary);
-   
+    assert(pCmdBuf->_create(pool, queue, temprary));
     return pCmdBuf;
 }
 
