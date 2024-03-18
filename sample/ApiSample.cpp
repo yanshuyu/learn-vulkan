@@ -76,34 +76,39 @@ bool ApiSample::Setup()
 
     index_t triIndices[3] = {0, 1, 2};
 
+    
     _triangleMesh.reset(new Mesh(m_pDevice.get()));
     _triangleMesh->SetVertices(triVerts, 3);
     _triangleMesh->SetColors(triColors, 3);
     _triangleMesh->SetIndices(triIndices, 3);
     _triangleMesh->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     assert(_triangleMesh->Apply());
-
+    
     // vertex color shader program
     _vertColorProgram = AssetsManager::LoadProgram("vertex_color.vert.spv", "vertex_color.frag.spv");
 
+    
     // triangle pipeline
     VkRect2D viewPort{};
     viewPort.offset = {0, 0};
     viewPort.extent = {(uint32_t)m_window->GetWidth(),(uint32_t)m_window->GetHeight()};
     _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _triangleMesh.get(), _renderPass.get()));
     _trianglePipeline->VSSetViewportScissorRect(viewPort, viewPort);
+    _trianglePipeline->FBDisableBlend(0);
     assert(_trianglePipeline->Apply());
 
     // triangle transform ubo
+    
     _triangleTransformUBO = m_pDevice->CreateBuffer(sizeof(glm::mat4) * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     float aspectRadio = (float)m_window->GetWidth() / m_window->GetHeight();
     std::vector<glm::mat4> matrixs(3, glm::mat4(1.f));
     matrixs[1] = glm::lookAt(glm::vec3(0, 0, -1), glm::vec3(0), glm::vec3(0, 1, 0));
     matrixs[2] = glm::perspective(glm::radians(30.f), aspectRadio, 0.01f, 100.f);
-    _triangleTransformUBO->Map();
+    _triangleTransformUBO->Map(Write);
     _triangleTransformUBO->SetData((uint8_t*)matrixs.data(), sizeof(glm::mat4) * matrixs.size(), 0);
     _triangleTransformUBO->UnMap();
     
+
     // triangle descriptor sets
     assert(DescriptorManager::AllocProgramDescriptorSet(_vertColorProgram, _triangleDescriotorSets));
     // update descriptor set

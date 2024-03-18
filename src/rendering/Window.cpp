@@ -46,14 +46,19 @@ Window::Window(const WindowDesc& wndDesc)
                                     wndDesc.name, 
                                     wndDesc.fullScreenMode ? glfwGetPrimaryMonitor() : nullptr, 
                                     nullptr);
+                                        
+    if (!m_GlfwWindow)
+        throw std::runtime_error("Window creation fatal error: create glfw window failed!");
 
     glfwSetWindowUserPointer(m_GlfwWindow, this);
 
     glfwSetWindowSizeCallback(m_GlfwWindow, ResizeCallback);
 
-    
-    if (!m_GlfwWindow)
-        throw std::runtime_error("Window creation fatal error: create glfw window failed!");
+    int w, h;
+    glfwGetFramebufferSize(m_GlfwWindow, &w, &h);
+    m_Width = w;
+    m_Height = h;
+
 }
 
 

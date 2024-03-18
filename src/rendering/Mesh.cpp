@@ -210,7 +210,7 @@ void Mesh::_gen_staging_data(Attribute attr, uint8_t *data, size_t sz)
 {
     assert(_stagingBuffers[attr] == nullptr);
     _stagingBuffers[attr] = _pDevice->CreateBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    uint8_t *mapedData = _stagingBuffers[attr]->Map();
+    uint8_t *mapedData = _stagingBuffers[attr]->Map(Write);
     memcpy(mapedData, data, sz);
     _stagingBuffers[attr]->UnMap();
 }
@@ -222,7 +222,7 @@ void Mesh::_update_buffer(CommandBuffer *cmd, Attribute attr, uint8_t *data, siz
     if (_readWriteEnable)
     {
         // host access directly
-        uint8_t *mapedPtr = buf->Map();
+        uint8_t *mapedPtr = buf->Map(Write);
         memcpy(mapedPtr, data, size);
         buf->UnMap();
     }

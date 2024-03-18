@@ -3,7 +3,7 @@
 VkImageAspectFlags vkutils_get_image_asepect_mask(VkFormat fmt)
 {
     if (vkutils_is_color_format(fmt))
-        return VK_IMAGE_ASPECT_DEPTH_BIT;
+        return VK_IMAGE_ASPECT_COLOR_BIT;
     if (vkutils_is_depth_only_format(fmt))
         return VK_IMAGE_ASPECT_DEPTH_BIT;
     if (vkutils_is_stencil_only_format(fmt))
@@ -31,7 +31,7 @@ VkImageLayout vkutils_get_render_pass_attachment_best_output_layout(VkFormat fmt
         return VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
     else if (vkutils_is_depth_only_format(fmt))
         return VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-    else if (vkutils_is_depth_and_stencil_format)
+    else if (vkutils_is_depth_and_stencil_format(fmt))
         return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;

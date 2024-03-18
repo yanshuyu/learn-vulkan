@@ -22,7 +22,7 @@ void RenderPass::AddColorAttachment(VkFormat fmt,
                             size_t sampleCnt)
 {
     assert(!vkutils_is_depth_or_stencil_format(fmt));
-    VkAttachmentDescription desc{};
+    VkAttachmentDescription2 desc{VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2};
     desc.flags = 0;
     desc.format = fmt;
     desc.samples = vkutils_get_sample_count_flag_bit(sampleCnt);
@@ -46,7 +46,7 @@ void RenderPass::AddDepthStencilAttachment(VkFormat fmt,
                                            size_t sampleCnt)
 {
     assert(vkutils_is_depth_or_stencil_format(fmt));
-    VkAttachmentDescription desc{};
+    VkAttachmentDescription2 desc{VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2};
     desc.flags = 0;
     desc.format = fmt;
     desc.samples = vkutils_get_sample_count_flag_bit(sampleCnt);
@@ -182,7 +182,10 @@ void RenderPass::AddSubPass(const size_t *outputAttachmentIndices,
     m_sp_col_resolve_att_refs.push_back(colorResolveAttachmentRefs);
     m_sp_o_ds_att_refs.push_back(dsAttachmentRef);
     m_sp_ds_resolve_att_refs.push_back(dsAttachmenResolveRef);
-    m_sp_ds_resolve_mods.push_back(dsResolveMode);
+    m_sp_ds_resolve_infos.push_back(dsResolveMode);
+
+    if (m_sp_ds_resolve_infos.back().has_value())
+        m_sp_ds_resolve_infos.back()->pDepthStencilResolveAttachment = &(*m_sp_ds_resolve_att_refs.back());
 
 }
 
@@ -204,81 +207,81 @@ bool RenderPass::Apply()
     }
 
     // if user didn't set proper init layout
-    // set attachment's init layout to first subpass's layout which use this attachment as input/output 
+    // set attachment's init layout to first subpass's layout which use this attachment as input
+    std::set<uint32_t> subPassOutputAttachmentIndices{};
     for (size_t subpassIdx = 0; subpassIdx < GetSubPassCount(); subpassIdx++)
     {
-        for (size_t attRefIdx = 0; attRefIdx < m_sp_i_att_refs[subpassIdx].size(); attRefIdx++)
+        for (auto &&attRef : m_sp_i_att_refs[subpassIdx])
         {
-            size_t attIdx = m_sp_i_att_refs[subpassIdx][attRefIdx].attachment;
-            if (vkutils_is_initailable_layout(m_attachmentDescs[attIdx].initialLayout))
-                m_attachmentDescs[attIdx].initialLayout = m_sp_i_att_refs[subpassIdx][attRefIdx].layout;
+            if (m_attachmentDescs[attRef.attachment].initialLayout == VK_IMAGE_LAYOUT_UNDEFINED
+                && subPassOutputAttachmentIndices.find(attRef.attachment) == subPassOutputAttachmentIndices.end())
+                m_attachmentDescs[attRef.attachment].initialLayout = attRef.layout;
         }
-
-        for (size_t attRefIdx = 0; attRefIdx < m_sp_o_col_att_refs[subpassIdx].size(); attRefIdx++)
-        {
-            size_t attIdx = m_sp_o_col_att_refs[subpassIdx][attRefIdx].attachment;
-            if (vkutils_is_initailable_layout(m_attachmentDescs[attIdx].initialLayout))
-                m_attachmentDescs[attIdx].initialLayout = m_sp_o_col_att_refs[subpassIdx][attRefIdx].layout;
-        }
-
+        
+        for (auto &&attRef : m_sp_o_col_att_refs[subpassIdx])
+            subPassOutputAttachmentIndices.insert(attRef.attachment);
+        
+        for (auto &&attRef : m_sp_col_resolve_att_refs[subpassIdx])
+            subPassOutputAttachmentIndices.insert(attRef.attachment);
+        
         if (m_sp_o_ds_att_refs[subpassIdx].has_value())
-        {
-            size_t attIdx = m_sp_o_ds_att_refs[subpassIdx]->attachment;
-            if (vkutils_is_initailable_layout(m_attachmentDescs[attIdx].initialLayout))
-                m_attachmentDescs[attIdx].initialLayout = m_sp_o_ds_att_refs[subpassIdx]->layout;
-        }
+            subPassOutputAttachmentIndices.insert(m_sp_o_ds_att_refs[subpassIdx]->attachment);
 
+        if (m_sp_ds_resolve_att_refs[subpassIdx].has_value())
+            subPassOutputAttachmentIndices.insert(m_sp_ds_resolve_att_refs[subpassIdx]->attachment); 
+        
     }
-
+    
+    
     // if user didn't set proper final layout
     // set attachment's final layout to last subpass's layout which use this attachment as input/output 
-    for (size_t subpassIdx = GetSubPassCount(); subpassIdx >= 0; subpassIdx--)
+    for (int subpassIdx = GetSubPassCount()-1; subpassIdx >= 0; subpassIdx--)
     {
-        for (size_t attRefIdx = 0; attRefIdx < m_sp_o_col_att_refs[subpassIdx].size(); attRefIdx++)
+        for (auto&& attRef : m_sp_o_col_att_refs[subpassIdx])
         {
-            size_t attIdx = m_sp_o_col_att_refs[subpassIdx][attRefIdx].attachment;
-            if (vkutils_is_initailable_layout(m_attachmentDescs[attIdx].finalLayout))
-                m_attachmentDescs[attIdx].finalLayout = m_sp_o_col_att_refs[subpassIdx][attRefIdx].layout;
+            if (vkutils_is_initailable_layout(m_attachmentDescs[attRef.attachment].finalLayout))
+                m_attachmentDescs[attRef.attachment].finalLayout = attRef.layout;
         }
 
         if (m_sp_o_ds_att_refs[subpassIdx].has_value())
-        {
-            size_t attachmentIdx = m_sp_o_ds_att_refs[subpassIdx]->attachment;
-            if (vkutils_is_initailable_layout(m_attachmentDescs[attachmentIdx].finalLayout))
-                m_attachmentDescs[attachmentIdx].finalLayout = m_sp_o_ds_att_refs[subpassIdx]->layout;
+        {   
+            auto& attRef = *m_sp_o_ds_att_refs[subpassIdx];
+            if (vkutils_is_initailable_layout(m_attachmentDescs[attRef.attachment].finalLayout))
+                m_attachmentDescs[attRef.attachment].finalLayout = attRef.layout;
         }
 
-        for (size_t attRefIdx = 0; attRefIdx < m_sp_i_att_refs[subpassIdx].size(); attRefIdx++)
+        for (auto&& attRef : m_sp_i_att_refs[subpassIdx])
         {
-            size_t attIdx = m_sp_i_att_refs[subpassIdx][attRefIdx].attachment;
-            if (vkutils_is_initailable_layout(m_attachmentDescs[attIdx].finalLayout))
-                m_attachmentDescs[attIdx].finalLayout = m_sp_i_att_refs[subpassIdx][attRefIdx].layout;
+            if (vkutils_is_initailable_layout(m_attachmentDescs[attRef.attachment].finalLayout))
+                m_attachmentDescs[attRef.attachment].finalLayout = attRef.layout;
         }
         
     }
 
-    // set resolve attachemt's init / final layout
+    // set resolve attachemt's final layout
     for (size_t subpassIdx = 0; subpassIdx < GetSubPassCount(); subpassIdx++)
     {
-        for (size_t attRefIdx = 0; attRefIdx < m_sp_col_resolve_att_refs[subpassIdx].size(); attRefIdx++)
+        for (auto&& attRef : m_sp_col_resolve_att_refs[subpassIdx])
         {
-            size_t attIdx = m_sp_col_resolve_att_refs[subpassIdx][attRefIdx].attachment;
-            m_attachmentDescs[attIdx].initialLayout = m_attachmentDescs[attIdx].finalLayout = m_sp_col_resolve_att_refs[subpassIdx][attRefIdx].layout;
+            if (vkutils_is_initailable_layout(m_attachmentDescs[attRef.attachment].finalLayout))
+                m_attachmentDescs[attRef.attachment].finalLayout = attRef.layout;
         }
-
+        
         if (m_sp_ds_resolve_att_refs[subpassIdx].has_value())
         {
-            size_t attIdx = m_sp_ds_resolve_att_refs[subpassIdx]->attachment;
-            m_attachmentDescs[attIdx].initialLayout = m_attachmentDescs[attIdx].finalLayout = m_sp_ds_resolve_att_refs[subpassIdx]->layout;
+            auto& attRef = *m_sp_ds_resolve_att_refs[subpassIdx];
+            if (vkutils_is_initailable_layout(m_attachmentDescs[attRef.attachment].finalLayout))
+                m_attachmentDescs[attRef.attachment].finalLayout = attRef.layout;
         }
     }
 
 
     // create sub pass dependentcy
-    std::vector<VkSubpassDependency> spDenpendentcys(GetSubPassCount() - 1);
+    std::vector<VkSubpassDependency2> spDenpendentcys(GetSubPassCount() - 1);
     for (size_t i = 0; i < spDenpendentcys.size(); i++)
     {
         // mark src subpass attachment act as input for dst subpass
+        spDenpendentcys[i].sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
         spDenpendentcys[i].srcSubpass = i;
         spDenpendentcys[i].dstSubpass = i + 1;
         spDenpendentcys[i].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -301,15 +304,11 @@ bool RenderPass::Apply()
         subPassDescs[i].pColorAttachments = m_sp_o_col_att_refs[i].data();
         subPassDescs[i].pResolveAttachments = m_sp_col_resolve_att_refs[i].size() > 0 ? m_sp_col_resolve_att_refs[i].data() : nullptr;
         subPassDescs[i].pDepthStencilAttachment = m_sp_o_ds_att_refs[i].has_value() ?  &(*m_sp_o_ds_att_refs[i]) : nullptr;
-        if (m_sp_ds_resolve_att_refs[i].has_value())
-        {
-            m_sp_ds_resolve_mods[i]->pDepthStencilResolveAttachment = &(*m_sp_ds_resolve_att_refs[i]);
-            subPassDescs[i].pNext = & (*m_sp_ds_resolve_mods[i]);
-        }
+        subPassDescs[i].pNext = m_sp_ds_resolve_infos[i].has_value() ? &(*m_sp_ds_resolve_infos[i]) : nullptr;
     }
 
     VkRenderPassCreateInfo2 createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
     createInfo.pNext = nullptr;
     createInfo.flags = 0;
     createInfo.attachmentCount = m_attachmentDescs.size();
@@ -318,7 +317,6 @@ bool RenderPass::Apply()
     createInfo.pSubpasses = subPassDescs.data();
     createInfo.dependencyCount = spDenpendentcys.size();
     createInfo.pDependencies = spDenpendentcys.data();
-
 
     VkRenderPass createdRenderPass{VK_NULL_HANDLE};
     VkResult result = vkCreateRenderPass2(_pDevice->GetHandle(), &createInfo, nullptr, &createdRenderPass);
@@ -358,16 +356,17 @@ bool RenderPass::Apply()
 
 void RenderPass::Release()
 {
-    if (IsCreate())
+    if (IsValid())
     {
-        vkDestroyRenderPass(m_vkDevice, m_vkRenderPass, nullptr);
-        m_vkDevice = VK_NULL_HANDLE;
+        vkDestroyRenderPass(_pDevice->GetHandle(), m_vkRenderPass, nullptr);
         m_vkRenderPass = VK_NULL_HANDLE;
         m_attachmentDescs.clear();
-        m_subpassDescs.clear();
         m_sp_i_att_refs.clear();
         m_sp_o_col_att_refs.clear();
         m_sp_o_ds_att_refs.clear();
+        m_sp_col_resolve_att_refs.clear();
+        m_sp_ds_resolve_att_refs.clear();
+        m_sp_ds_resolve_infos.clear();
     }
 }
 

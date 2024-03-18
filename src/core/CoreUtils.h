@@ -110,7 +110,7 @@ inline bool vkutils_is_depth_or_stencil_format(VkFormat fmt)
     return vkutils_is_depth_format(fmt) || vkutils_is_stencil_format(fmt);
 }
 
-bool vkutils_is_depth_and_stencil_layout(VkImageLayout layout)
+inline bool vkutils_is_depth_and_stencil_layout(VkImageLayout layout)
 {
     return layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
         || layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
@@ -123,13 +123,13 @@ inline bool vkutils_is_color_format(VkFormat fmt)
     return !vkutils_is_depth_or_stencil_format(fmt);
 }
 
-bool vkutils_is_depth_only_layout(VkImageLayout layout)
+inline bool vkutils_is_depth_only_layout(VkImageLayout layout)
 {
     return layout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL 
         || layout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
 }
 
-bool vkutils_is_stencil_only_layout(VkImageLayout layout)
+inline bool vkutils_is_stencil_only_layout(VkImageLayout layout)
 {
     return layout == VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL
         || layout == VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;

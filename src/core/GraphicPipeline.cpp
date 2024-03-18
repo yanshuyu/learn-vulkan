@@ -146,7 +146,7 @@ void GraphicPipeline::FBEnableBlend(int attachmentIdx)
 void GraphicPipeline::FBDisableBlend(int attachmentIdx)
 {
     if (attachmentIdx >= m_FBAttchmentStates.size())
-        return;
+         m_FBAttchmentStates.resize(attachmentIdx + 1, GetDefaultBlendState());
 
      m_FBAttchmentStates[attachmentIdx].blendEnable = VK_FALSE;
 }
@@ -352,7 +352,7 @@ bool GraphicPipeline::Apply()
     fbInfo.attachmentCount = m_FBAttchmentStates.size();
     fbInfo.pAttachments = m_FBAttchmentStates.data();
 
-    VkPipelineDynamicStateCreateInfo dyStateInfo{};
+    VkPipelineDynamicStateCreateInfo dyStateInfo{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
     dyStateInfo.flags = 0;
     dyStateInfo.pNext = nullptr;
     dyStateInfo.dynamicStateCount = m_DynamicStates.size();

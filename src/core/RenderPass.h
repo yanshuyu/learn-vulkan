@@ -57,22 +57,23 @@ public:
     int GetSubPassCount() const { return m_sp_i_att_refs.size(); }
     //VkSubpassDescription2 GetSubPassDesc(size_t idx) const {return m_subpassDescs[idx]; }
     size_t GetSubPassOutputColorAttachmentCount(size_t idx) const {return m_sp_o_col_att_refs[idx].size(); }
+    size_t GetSubPassInputAttachmentCount(size_t idx) const { return m_sp_i_att_refs[idx].size(); }
 
     VkRenderPass GetHandle() const { return m_vkRenderPass; }
 
 private:
 
-    Device* _pDevice;
+    //Device* _pDevice;
     VkRenderPass m_vkRenderPass{VK_NULL_HANDLE};
 
-    std::vector<VkAttachmentDescription> m_attachmentDescs{};
+    std::vector<VkAttachmentDescription2> m_attachmentDescs{};
 
     std::vector<std::vector<VkAttachmentReference2>> m_sp_i_att_refs{};
     std::vector<std::vector<VkAttachmentReference2>> m_sp_o_col_att_refs{};
     std::vector<std::optional<VkAttachmentReference2>> m_sp_o_ds_att_refs{};
     std::vector<std::vector<VkAttachmentReference2>> m_sp_col_resolve_att_refs{};
     std::vector<std::optional<VkAttachmentReference2>> m_sp_ds_resolve_att_refs{};
-    std::vector<std::optional<VkSubpassDescriptionDepthStencilResolve>> m_sp_ds_resolve_mods{};
+    std::vector<std::optional<VkSubpassDescriptionDepthStencilResolve>> m_sp_ds_resolve_infos{};
 
     //std::vector<VkSubpassDescription2> m_subpassDescs{};
 };

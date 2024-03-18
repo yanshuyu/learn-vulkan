@@ -1,33 +1,44 @@
 #include"core\IMapAccessMemory.h"
 
+uint8_t *IMapAccessMemory::Map(MapAcess mode)
+{
+    if (!CanMap())
+        return nullptr;
 
-  uint8_t *IMapAccessMemory::Map()
-  {
-      if (!CanMap())
-          return nullptr;
+    if (IsMapped())
+    {
+        if (_mapAccessMode != mode)
+        {
+            LOGE("Try to map already maped momery({}) with diffrent access mode!", (void *)this);
+            return nullptr;
+        }
 
-      if (IsMapped())
-          return _MappedData;
+        return _MappedData;
+    }
 
-      Flush();
+    VkResult result = vkMapMemory(GetDeviceHandle(), GetMemory(), 0, VK_WHOLE_SIZE, 0, (void **)(&_MappedData));
+    if (result != VK_SUCCESS)
+    {
+        LOGE("Memory({}) Map error: {}", (void *)GetMemory(), result)
+        _MappedData = nullptr;
+        return nullptr;
+    }
 
-      VkResult result = vkMapMemory(GetDeviceHandle(), GetMemory(), 0, VK_WHOLE_SIZE, 0, (void **)(&_MappedData));
-      if (result != VK_SUCCESS)
-      {
-          LOGE("Memory({}) Map error: {}", (void *)GetMemory(), result)
-          _MappedData = nullptr;
-          return nullptr;
-      }
+    _mapAccessMode = mode;
 
-      return _MappedData;
-  }
+    if (_mapAccessMode == Read)
+        Flush();
+
+    return _MappedData;
+}
 
   void IMapAccessMemory::UnMap()
   {
       if (!CanMap() || !IsMapped())
           return;
 
-      Flush();
+      if (_mapAccessMode == Write)   
+        Flush();
 
       vkUnmapMemory(GetDeviceHandle(), GetMemory());
       _MappedData = nullptr;
@@ -61,7 +72,7 @@
 
   void IMapAccessMemory::Flush()
   {
-      if (IsCoherent())
+      if (IsCoherent() || !IsMapped())
           return;
 
       VkMappedMemoryRange memMapRange{};
@@ -70,7 +81,7 @@
       memMapRange.memory = GetMemory();
       memMapRange.offset = 0;
       memMapRange.size = VK_WHOLE_SIZE;
-      if (!IsMapped()) // make device writes visible to client
+      if (_mapAccessMode == Read) // make device writes visible to client
         vkInvalidateMappedMemoryRanges(GetDeviceHandle(), 1, &memMapRange);
       else // make client writes visible to device
         vkFlushMappedMemoryRanges(GetDeviceHandle(), 1, &memMapRange); 
