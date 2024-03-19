@@ -118,7 +118,7 @@ void GraphicPipeline::VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D s
     //m_IADesc = {VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
 
     m_Viewport.x = m_Viewport.y = 0;
-    m_Viewport.width = m_Viewport.height = 00;
+    m_Viewport.width = m_Viewport.height = 0;
     m_Viewport.minDepth = 0;
     m_Viewport.maxDepth = 1;
     m_Scissor = {};

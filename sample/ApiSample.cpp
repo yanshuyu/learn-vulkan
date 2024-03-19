@@ -49,7 +49,7 @@ bool ApiSample::Setup()
     // render pass
     _renderPass.reset(new RenderPass(m_pDevice.get()));
     _renderPass->AddColorAttachment(m_pSwapChain->GetBufferFormat().format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    _renderPass->AddDepthStencilAttachment(VK_FORMAT_D24_UNORM_S8_UINT);
+    _renderPass->AddDepthStencilAttachment(VK_FORMAT_D24_UNORM_S8_UINT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_DONT_CARE);
     size_t outputAttachments[] = {0 , 1};
     _renderPass->AddSubPass(outputAttachments, 2);
     assert(_renderPass->Apply());
@@ -95,6 +95,7 @@ bool ApiSample::Setup()
     _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _triangleMesh.get(), _renderPass.get()));
     _trianglePipeline->VSSetViewportScissorRect(viewPort, viewPort);
     _trianglePipeline->FBDisableBlend(0);
+    _trianglePipeline->RSSetCullFace(VK_CULL_MODE_NONE);
     assert(_trianglePipeline->Apply());
 
     // triangle transform ubo
@@ -102,7 +103,8 @@ bool ApiSample::Setup()
     _triangleTransformUBO = m_pDevice->CreateBuffer(sizeof(glm::mat4) * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     float aspectRadio = (float)m_window->GetWidth() / m_window->GetHeight();
     std::vector<glm::mat4> matrixs(3, glm::mat4(1.f));
-    matrixs[1] = glm::lookAt(glm::vec3(0, 0, -1), glm::vec3(0), glm::vec3(0, 1, 0));
+    matrixs[0] = glm::mat4(1);
+    matrixs[1] = glm::lookAt(glm::vec3(0, 0, -10), glm::vec3(0), glm::vec3(0, 1, 0));
     matrixs[2] = glm::perspective(glm::radians(30.f), aspectRadio, 0.01f, 100.f);
     _triangleTransformUBO->Map(Write);
     _triangleTransformUBO->SetData((uint8_t*)matrixs.data(), sizeof(glm::mat4) * matrixs.size(), 0);
@@ -133,17 +135,17 @@ bool ApiSample::Setup()
 
 void ApiSample::Release()
 {
+    _trianglePipeline->Release();
+
     _triangleMesh->Release();
 
     m_pDevice->DestroyBuffer(_triangleTransformUBO);
 
-    _trianglePipeline->Release();
-
-    _renderPass->Release();
-
     DescriptorManager::Release();
 
     AssetsManager::Release();
+   
+    _renderPass->Release();
    
     DestroySwapChainFrameBuffers();
 
@@ -230,7 +232,7 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     clearColor.float32[3] = m_appDesc.backBufferClearColor[3];
 
     VkClearDepthStencilValue clearDepthStencil;
-    clearDepthStencil.depth = 0;
+    clearDepthStencil.depth = 1;
     clearDepthStencil.stencil = 0;
 
     VkClearValue clearSettings[2];
@@ -245,19 +247,20 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     renderPassBegInfo.pClearValues = clearSettings;
     vkCmdBeginRenderPass(m_CmdBuffer, &renderPassBegInfo, VK_SUBPASS_CONTENTS_INLINE);
    
+    static VkDeviceSize attrBindingZeroOffsets[MaxAttribute] = {0, 0, 0, 0, 0, 0};
     // ***************************** draw call cmds **************************************
-    // vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline->GetHandle());
-    // vkCmdBindDescriptorSets(m_CmdBuffer,
-    //                         VK_PIPELINE_BIND_POINT_GRAPHICS,
-    //                         _trianglePipeline->GetLayoutHandle(),
-    //                         0,
-    //                         _triangleDescriotorSets.size(),
-    //                         _triangleDescriotorSets.data(),
-    //                         0,
-    //                         nullptr);
-    // vkCmdBindVertexBuffers(m_CmdBuffer, 0, _triangleMesh->GetAttributeCount(), _triangleMesh->GetAttributeBindingHandls(), 0);
-    // vkCmdBindIndexBuffer(m_CmdBuffer, _triangleMesh->GetIndexBuffer()->GetHandle(), 0, _triangleMesh->GetIndexType());
-    // vkCmdDrawIndexed(m_CmdBuffer, _triangleMesh->GetIndicesCount(), 1, 0, 0, 0);
+    vkCmdBindDescriptorSets(m_CmdBuffer,
+                            VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            _trianglePipeline->GetLayoutHandle(),
+                            0,
+                            _triangleDescriotorSets.size(),
+                            _triangleDescriotorSets.data(),
+                            0,
+                            nullptr);
+    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline->GetHandle());
+    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _triangleMesh->GetAttributeCount(), _triangleMesh->GetAttributeBindingHandls(), attrBindingZeroOffsets);
+    vkCmdBindIndexBuffer(m_CmdBuffer, _triangleMesh->GetIndexBuffer()->GetHandle(), 0, _triangleMesh->GetIndexType());
+    vkCmdDrawIndexed(m_CmdBuffer, _triangleMesh->GetIndicesCount(), 1, 0, 0, 0);
 
     // ***********************************************************************************
 
