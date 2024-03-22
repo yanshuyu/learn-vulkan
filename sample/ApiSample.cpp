@@ -96,6 +96,7 @@ bool ApiSample::Setup()
     _trianglePipeline->VSSetViewportScissorRect(viewPort, viewPort);
     _trianglePipeline->FBDisableBlend(0);
     _trianglePipeline->RSSetCullFace(VK_CULL_MODE_NONE);
+    _trianglePipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
     assert(_trianglePipeline->Apply());
 
     // triangle transform ubo
@@ -103,9 +104,13 @@ bool ApiSample::Setup()
     _triangleTransformUBO = m_pDevice->CreateBuffer(sizeof(glm::mat4) * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     float aspectRadio = (float)m_window->GetWidth() / m_window->GetHeight();
     std::vector<glm::mat4> matrixs(3, glm::mat4(1.f));
+    glm::mat4 adopt_vk_ndc(1);
+    adopt_vk_ndc[1][1] = adopt_vk_ndc[2][2] = -1;
+    //adopt_vk_ndc = glm::inverse(adopt_vk_ndc);
     matrixs[0] = glm::mat4(1);
     matrixs[1] = glm::lookAt(glm::vec3(0, 0, -10), glm::vec3(0), glm::vec3(0, 1, 0));
-    matrixs[2] = glm::perspective(glm::radians(30.f), aspectRadio, 0.01f, 100.f);
+    matrixs[2] = glm::perspective(glm::radians(30.f), aspectRadio, 0.01f, 100.f) * adopt_vk_ndc;
+    //matrixs[2][1][1] *= -1;
     _triangleTransformUBO->Map(Write);
     _triangleTransformUBO->SetData((uint8_t*)matrixs.data(), sizeof(glm::mat4) * matrixs.size(), 0);
     _triangleTransformUBO->UnMap();
