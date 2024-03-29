@@ -77,7 +77,7 @@ bool ShaderProgram::AddAttribute(Attribute attr, size_t location)
 }
 
 
-bool ShaderProgram::AddResourceBinding(size_t setIdx,
+bool ShaderProgram::AddDescriptorSetBinding(size_t setIdx,
                                        size_t bindingLocation,
                                        VkDescriptorType resourceType,
                                        size_t resourceArrayElementCnt,
@@ -116,8 +116,7 @@ bool ShaderProgram::AddResourceBinding(size_t setIdx,
 bool ShaderProgram::Apply()
 {
     // create decriptor set layout
-    _setLayouts.resize(_setLayoutBindings.size(), VK_NULL_HANDLE);
-    _layoutIdxToSetIdx.resize(_setLayoutBindings.size(), -1);
+    std::vector<VkDescriptorSetLayout> setLayouts(_setLayoutBindings.size(), VK_NULL_HANDLE);
     size_t idx = 0;
     for (auto &&setLayoutBindings : _setLayoutBindings)
     {
@@ -127,26 +126,25 @@ bool ShaderProgram::Apply()
         VkDescriptorSetLayout createdSetLayout{VK_NULL_HANDLE};
         if (VKCALL_FAILED(vkCreateDescriptorSetLayout(_pDevice->GetHandle(), &createInfo, nullptr, &createdSetLayout)))
         {
-            _release_layouts();
+            _release_layouts(setLayouts);
             return false;
         }
 
-        _setLayouts[idx] = createdSetLayout;
-        _setIdxToLayoutIdx[setLayoutBindings.first] = idx;
-        _layoutIdxToSetIdx[idx] = setLayoutBindings.first;
+        setLayouts[idx] = createdSetLayout;
         idx++;
     }
     
     // create pipeline layout
     VkPipelineLayoutCreateInfo createinfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    createinfo.setLayoutCount = _setLayouts.size();
-    createinfo.pSetLayouts = _setLayouts.data();
+    createinfo.setLayoutCount = setLayouts.size();
+    createinfo.pSetLayouts = setLayouts.data();
     if (VKCALL_FAILED(vkCreatePipelineLayout(_pDevice->GetHandle(), &createinfo, nullptr, &_pipelineLayout)))
     {
-        _release_layouts();
+        _release_layouts(setLayouts);
         return false;
     }
 
+    _release_layouts(setLayouts);
     return true;
 }
 
@@ -154,54 +152,21 @@ bool ShaderProgram::Apply()
 
 void ShaderProgram::Release()
 {
-    ReleaseShaderMoudles();
-
     if (!IsValid())
         return;
         
-    _release_layouts();
-    _release_shaders();
+    vkDestroyPipelineLayout(_pDevice->GetHandle(), _pipelineLayout, nullptr);
+    VKHANDLE_SET_NULL(_pipelineLayout);
 }
 
 
-void ShaderProgram::ReleaseShaderMoudles()
+
+void ShaderProgram::_release_layouts(const std::vector<VkDescriptorSetLayout>& setLayouts)
 {
-    for (size_t i = 0; i < _shaders.size(); i++)
+    for (size_t i = 0; i < setLayouts.size(); i++)
     {
-        if (VKHANDLE_IS_NOT_NULL(_shaders[i].shaderMoudle))
-        {
-            vkDestroyShaderModule(_pDevice->GetHandle(), _shaders[i].shaderMoudle, nullptr);
-            VKHANDLE_SET_NULL(_shaders[i].shaderMoudle);
-        }
+        if (VKHANDLE_IS_NOT_NULL(setLayouts[i]))
+            vkDestroyDescriptorSetLayout(_pDevice->GetHandle(), setLayouts[i], nullptr);
     }
 }
 
-void ShaderProgram::_release_layouts()
-{
-    for (size_t i = 0; i < _setLayouts.size(); i++)
-    {
-        if (VKHANDLE_IS_NOT_NULL(_setLayouts[i]))
-            vkDestroyDescriptorSetLayout(_pDevice->GetHandle(), _setLayouts[i], nullptr);
-    }
-
-    _setLayouts.clear();
-    _setIdxToLayoutIdx.clear();
-    _layoutIdxToSetIdx.clear();
-
-    if (VKHANDLE_IS_NOT_NULL(_pipelineLayout))
-    {
-        vkDestroyPipelineLayout(_pDevice->GetHandle(), _pipelineLayout, nullptr);
-        VKHANDLE_SET_NULL(_pipelineLayout);
-    }
-}
-
-
-void ShaderProgram::_release_shaders()
-{
-    for (size_t i = 0; i < _shaders.size(); i++)
-    {
-        if (VKHANDLE_IS_NOT_NULL(_shaders[i].shaderMoudle))
-            vkDestroyShaderModule(_pDevice->GetHandle(), _shaders[i].shaderMoudle, nullptr);
-    }
-    _shaders.clear();
-}

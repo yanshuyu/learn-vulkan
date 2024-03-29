@@ -200,3 +200,36 @@ uint32_t vkutils_fetch_max_sample_count(VkSampleCountFlags sampleCountFlags)
     
     return 1;
 }
+
+VkShaderStageFlagBits vkutils_get_shader_stage_bit_from_file_extendsion(const char* ext)
+{
+    const char* extNames[] = {
+        ".vert",
+        ".frag",
+        ".geom",
+        ".tesc",
+        ".tese",
+        ".comp",
+    };
+
+
+    VkShaderStageFlagBits shaderStageBits[] = {
+        VK_SHADER_STAGE_VERTEX_BIT,
+        VK_SHADER_STAGE_FRAGMENT_BIT,
+        VK_SHADER_STAGE_GEOMETRY_BIT,
+        VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT,
+        VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT,
+        VK_SHADER_STAGE_COMPUTE_BIT,
+    };
+
+    size_t idx = 0;
+    for (auto &&_ext : extNames)
+    {
+        if (strcmp(_ext, ext))
+            return shaderStageBits[idx];
+        idx++;
+    }
+    
+    return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+    
+}

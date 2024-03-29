@@ -9,7 +9,7 @@
 #include"rendering\Window.h"
 #include"rendering\Mesh.h"
 #include"rendering\AssetsManager.h"
-#include"rendering\DescriptorManager.h"
+#include"rendering\DescriptorSetManager.h"
 #include<glm\gtc\matrix_transform.hpp>
 
 
@@ -138,6 +138,7 @@ bool ApiSample::Setup()
 }
 
 
+
 void ApiSample::Release()
 {
     _trianglePipeline->Release();
@@ -176,6 +177,21 @@ void ApiSample::Release()
         m_pDevice->DestroyCommandBuffer(m_pCmdBuffer);
         m_pCmdBuffer = nullptr;
     }
+}
+
+
+void ApiSample::Step()
+{
+    _gameTimer.StartFrame();
+    Update();
+    Draw();
+    _gameTimer.EndFrame();
+}
+
+
+void ApiSample::Update()
+{
+    
 }
 
 

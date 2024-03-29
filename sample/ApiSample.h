@@ -1,8 +1,10 @@
 #pragma once
 #include"Application.h"
 #include"core\CoreUtils.h"
+#include<rendering\GameTimer.h>
 #include<memory>
 #include<vector>
+
 
 class Buffer;
 class Mesh;
@@ -10,6 +12,7 @@ class ShaderProgram;
 class GraphicPipeline;
 class CommandBuffer;
 class RenderPass;
+struct PerFrameData;
 
 class ApiSample : public Application
 {
@@ -37,6 +40,11 @@ private:
     Buffer* _triangleTransformUBO{nullptr};
     std::vector<VkDescriptorSet> _triangleDescriotorSets{};
 
+    GameTimer _gameTimer{};
+
+    std::unique_ptr<PerFrameData> _perFrameData{};
+    
+
 
 public:
     ApiSample(const AppDesc& appDesc);
@@ -48,13 +56,14 @@ private:
     bool CreateSwapChainFrameBuffers();
     void DestroySwapChainFrameBuffers();
 
+    void Update();
 
     void Draw();
 
     void RecordDrawCommands(uint32_t swapChainImageIdx);
 
 public:
-    void Step() override { Draw(); };
+    void Step() override;
 
     bool Setup() override;
 

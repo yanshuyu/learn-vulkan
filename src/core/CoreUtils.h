@@ -72,6 +72,7 @@ enum Attribute
 typedef uint32_t index_t;
 
 
+
 // Functions
 inline bool vkutils_is_depth_and_stencil_format(VkFormat fmt)
 {
@@ -179,3 +180,5 @@ bool vkutils_fetch_device_feature(const VkPhysicalDeviceFeatures& featureProps, 
 uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, DeviceLimits limit);
 
 uint32_t vkutils_fetch_max_sample_count(VkSampleCountFlags sampleCountFlags);
+
+VkShaderStageFlagBits vkutils_get_shader_stage_bit_from_file_extendsion(const char* ext);
