@@ -157,7 +157,9 @@ inline bool vkutils_is_initailable_layout(VkImageLayout layout)
         || layout == VK_IMAGE_LAYOUT_PREINITIALIZED;
 }
 
-VkImageAspectFlags vkutils_get_image_asepect_mask(VkFormat fmt);
+VkImageAspectFlags vkutils_get_image_input_asepect_mask(VkFormat fmt);
+
+VkImageAspectFlags vkutils_get_image_output_asepect_mask(VkFormat fmt);
 
 VkImageLayout vkutils_get_render_pass_attachment_best_input_layout(VkFormat fmt);
 

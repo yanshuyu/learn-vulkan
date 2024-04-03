@@ -4,7 +4,7 @@
 #include"core\SwapChain.h"
 #include"rendering\Window.h"
 #include"rendering\AssetsManager.h"
-
+#include"rendering\DescriptorSetManager.h"
 
 Application::Application(const AppDesc& appDesc)
 : m_appDesc(appDesc)
@@ -124,7 +124,8 @@ bool Application::Prepare(Window* window)
     }
 
     AssetsManager::Initailize(m_pDevice.get());
-    
+    DescriptorSetManager::Initailize(m_pDevice.get());
+
     // concrete application will prepare it's resource here...
     return Setup();
 }
@@ -138,7 +139,8 @@ void Application::Finish()
     // concrete application must relase all device's child resource here ...
     Release();
 
-    AssetsManager::Release();
+    DescriptorSetManager::DeInitailize();
+    AssetsManager::DeInitailize();
 
     m_pSwapChain->Release();
 

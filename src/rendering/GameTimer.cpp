@@ -24,7 +24,8 @@ float GameTimer::EndFrame()
     _totalFrame++;
     _totalDurSec += dur;
     _aveFps =_totalFrame / _totalDurSec;
-
+    _deltaTime = dur;
+    
     return dur;
 }
 

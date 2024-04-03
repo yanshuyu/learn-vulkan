@@ -13,6 +13,7 @@ private:
 
     float _fps{0};
     float _aveFps{0};
+    float _deltaTime{0};
 
 public:
     GameTimer() { Reset(); }
@@ -23,4 +24,5 @@ public:
     float GetTotalSeconds() const { return _totalDurSec; }
     float GetFps() const { return _fps; }
     float GetAveFps() const { return _aveFps; }
+    float GetDeltaTime() const { return _deltaTime; }
 };

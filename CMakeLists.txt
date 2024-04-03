@@ -22,6 +22,7 @@ message("****************************SAMPLE_CXX_FILES: ${SAMPLE_CXX_FILES}")
 aux_source_directory(${PROJECT_SOURCE_DIR} MAIN_CXX_FILES)
 message("****************************MAIN_CXX_FILES: ${MAIN_CXX_FILES}")
 
+
 add_executable(${PROJECT_NAME} ${MAIN_CXX_FILES} ${SAMPLE_CXX_FILES} ${CORE_CXX_FILES} ${RENDERING_CXX_FILES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/src ${GLFW_INC_DIR} ${VULKAN_INC_DIR})
 target_link_directories(${PROJECT_NAME} PRIVATE ${GLFW_LIB_DIR} ${VULKAN_LIB_DIR})

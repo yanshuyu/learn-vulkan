@@ -82,7 +82,7 @@ void RenderPass::AddSubPass(const size_t *outputAttachmentIndices,
         VkAttachmentReference2 aRef{VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
         aRef.attachment = attchmentIdx;
         aRef.layout = vkutils_get_render_pass_attachment_best_input_layout(m_attachmentDescs[attchmentIdx].format);
-        aRef.aspectMask = vkutils_get_image_asepect_mask(m_attachmentDescs[attchmentIdx].format);
+        aRef.aspectMask = vkutils_get_image_input_asepect_mask(m_attachmentDescs[attchmentIdx].format);
         iAttachmentRefs.push_back(aRef);
     }
 
@@ -100,7 +100,7 @@ void RenderPass::AddSubPass(const size_t *outputAttachmentIndices,
         VkAttachmentReference2 aRef{VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
         aRef.attachment = attachmentIdx;
         aRef.layout = vkutils_get_render_pass_attachment_best_output_layout(m_attachmentDescs[attachmentIdx].format);
-        aRef.aspectMask = vkutils_get_image_asepect_mask(m_attachmentDescs[attachmentIdx].format);
+        aRef.aspectMask = vkutils_get_image_output_asepect_mask(m_attachmentDescs[attachmentIdx].format);
         if (!vkutils_is_depth_or_stencil_format(m_attachmentDescs[attachmentIdx].format)) // color attachment
         {
             oAttachmentRefs.push_back(aRef);

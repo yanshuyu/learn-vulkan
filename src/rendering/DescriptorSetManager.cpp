@@ -3,6 +3,7 @@
 #include"core\Device.h"
 #include"rendering\RenderData.h"
 
+Device* DescriptorSetManager::s_Device{nullptr};
 
 DescriptorSetManager::AutoDescriptorPool::AutoDescriptorPool(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding>& setBindings, size_t maxSetPerPool, VkDescriptorPoolCreateFlags poolFlags)
 : _device(device)
@@ -22,6 +23,31 @@ DescriptorSetManager::AutoDescriptorPool::AutoDescriptorPool(VkDevice device, co
     setLayoutInfo.bindingCount = setBindings.size();
     setLayoutInfo.pBindings = setBindings.data();
     assert(VKCALL_SUCCESS(vkCreateDescriptorSetLayout(_device, &setLayoutInfo, nullptr, &_setLayout)));
+
+    _setLayoutBindings.resize(setBindings.size());
+    std::copy(setBindings.begin(), setBindings.end(), _setLayoutBindings.begin());
+}
+
+DescriptorSetManager::AutoDescriptorPool::AutoDescriptorPool(VkDevice device, std::vector<VkDescriptorSetLayoutBinding>&& setBindings, size_t maxSetPerPool, VkDescriptorPoolCreateFlags poolFlags)
+: _device(device)
+, _maxSetPerPool(maxSetPerPool)
+, _poolFlags(poolFlags)
+{
+    assert(VKHANDLE_IS_NOT_NULL(_device));
+    for (auto &&binding : setBindings)
+    {
+        auto itr = _poolSz.find(binding.descriptorType);
+        if (itr == _poolSz.end())
+            itr = _poolSz.insert(std::make_pair(binding.descriptorType, 0)).first;
+        itr->second += binding.descriptorCount; // or itr->second++;
+    }
+
+    VkDescriptorSetLayoutCreateInfo setLayoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    setLayoutInfo.bindingCount = setBindings.size();
+    setLayoutInfo.pBindings = setBindings.data();
+    assert(VKCALL_SUCCESS(vkCreateDescriptorSetLayout(_device, &setLayoutInfo, nullptr, &_setLayout)));
+
+    _setLayoutBindings = std::move(setBindings);
 }
 
 DescriptorSetManager::AutoDescriptorPool::~AutoDescriptorPool()
@@ -79,6 +105,12 @@ void DescriptorSetManager::AutoDescriptorPool::Reset()
 
 void DescriptorSetManager::AutoDescriptorPool::Release()
 {
+    if (VKHANDLE_IS_NOT_NULL(_setLayout))
+    {
+        vkDestroyDescriptorSetLayout(_device, _setLayout, nullptr);
+        VKHANDLE_SET_NULL(_setLayout);
+    }
+
     for (auto &&pool : _pools)
     {
         vkDestroyDescriptorPool(_device, pool, nullptr);   
@@ -134,9 +166,15 @@ void DescriptorSetManager::AutoDescriptorPool::Release()
 
  void DescriptorSetManager::RegisterSetLayout(SetIndices setIdx, size_t setHash, const std::vector<VkDescriptorSetLayoutBinding>& setBindings, bool freeableSet, size_t maxSetPerPool)
  {
+    std::vector<VkDescriptorSetLayoutBinding> temp(setBindings.begin(), setBindings.end());
+    RegisterSetLayout(setIdx, setHash, std::move(temp), freeableSet, maxSetPerPool);
+ }
+
+ void DescriptorSetManager::RegisterSetLayout(SetIndices setIdx, size_t setHash, std::vector<VkDescriptorSetLayoutBinding>&& setBindings, bool freeableSet, size_t maxSetPerPool)
+ {
     auto pool = std::make_unique<AutoDescriptorPool>(
             s_Device->GetHandle(),
-            setBindings,
+            std::move(setBindings),
             maxSetPerPool,
             freeableSet ? VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT : 0);
     if (setIdx == PerMaterial)
@@ -157,7 +195,6 @@ void DescriptorSetManager::AutoDescriptorPool::Release()
     }
  }
 
-
  VkDescriptorSetLayout DescriptorSetManager::GetSetLayout(SetIndices setIdx, size_t setHash)
  {
     if (setIdx == PerMaterial)
@@ -173,6 +210,22 @@ void DescriptorSetManager::AutoDescriptorPool::Release()
         return s_CommonDescriptorPools[setIdx] ? s_CommonDescriptorPools[setIdx]->GetDescriptorSetLayout() : VK_NULL_HANDLE;
     }
  }
+
+const std::vector<VkDescriptorSetLayoutBinding>* DescriptorSetManager::GetSetLayoutBindings(SetIndices setIdx, size_t setHash)
+{
+    if (setIdx == PerMaterial)
+    {
+        auto itr = s_PerMaterialDescriptorPools.find(setHash);
+        if (itr == s_PerMaterialDescriptorPools.end())
+            return nullptr;
+        
+        return &(itr->second->GetDescriptorSetLayoutBindings());
+    }
+    else 
+    {
+        return s_CommonDescriptorPools[setIdx] ? &(s_CommonDescriptorPools[setIdx]->GetDescriptorSetLayoutBindings()) : nullptr;
+    }
+}
 
  VkDescriptorSet DescriptorSetManager::AllocDescriptorSet(SetIndices setIdx, size_t providerHash)
  {
@@ -213,12 +266,13 @@ void DescriptorSetManager::DeInitailize()
 
     for (auto &&pool : s_PerMaterialDescriptorPools)
     {
-        pool.second.release();
+        pool.second->Release();
     }
     
     for (auto &&pool : s_CommonDescriptorPools)
     {
-        pool.release();
+        if (pool)
+            pool->Release();
     }
     
 }

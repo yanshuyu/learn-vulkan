@@ -1,6 +1,19 @@
 #include"core\CoreUtils.h"
 
-VkImageAspectFlags vkutils_get_image_asepect_mask(VkFormat fmt)
+VkImageAspectFlags vkutils_get_image_input_asepect_mask(VkFormat fmt)
+{
+    if (vkutils_is_color_format(fmt))
+        return VK_IMAGE_ASPECT_COLOR_BIT;
+    if (vkutils_is_depth_only_format(fmt))
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    if (vkutils_is_stencil_only_format(fmt))
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+
+    return VK_IMAGE_ASPECT_DEPTH_BIT;
+}
+
+
+VkImageAspectFlags vkutils_get_image_output_asepect_mask(VkFormat fmt)
 {
     if (vkutils_is_color_format(fmt))
         return VK_IMAGE_ASPECT_COLOR_BIT;
@@ -11,6 +24,7 @@ VkImageAspectFlags vkutils_get_image_asepect_mask(VkFormat fmt)
 
     return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 }
+
 
 VkImageLayout vkutils_get_render_pass_attachment_best_input_layout(VkFormat fmt)
 {

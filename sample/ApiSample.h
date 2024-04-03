@@ -13,6 +13,8 @@ class GraphicPipeline;
 class CommandBuffer;
 class RenderPass;
 struct PerFrameData;
+struct PerCameraData;
+struct PerObjectData;
 
 class ApiSample : public Application
 {
@@ -37,14 +39,12 @@ private:
     std::unique_ptr<Mesh> _triangleMesh{};
     ShaderProgram* _vertColorProgram{nullptr};
     std::unique_ptr<GraphicPipeline> _trianglePipeline{};
-    Buffer* _triangleTransformUBO{nullptr};
-    std::vector<VkDescriptorSet> _triangleDescriotorSets{};
 
     GameTimer _gameTimer{};
 
     std::unique_ptr<PerFrameData> _perFrameData{};
-    
-
+    std::unique_ptr<PerCameraData> _perCameraData{};
+    std::unique_ptr<PerObjectData> _perObjectData{};
 
 public:
     ApiSample(const AppDesc& appDesc);

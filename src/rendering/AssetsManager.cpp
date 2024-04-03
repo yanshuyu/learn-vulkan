@@ -66,6 +66,17 @@ ShaderProgram* AssetsManager::LoadProgram(const char* vs, const char* vsName, co
 }
 
 
+void AssetsManager::UnloadProgram(ShaderProgram* program)
+{
+    auto itr = s_programs.find(program->GetName());
+    if (itr != s_programs.end())
+    {
+        itr->second->Release();
+        s_programs.erase(itr);
+    }
+}
+
+
  VkShaderModule AssetsManager::_load_shader_moudle(const char *srcPath)
  {
      auto itr = s_shaderModules.find(srcPath);

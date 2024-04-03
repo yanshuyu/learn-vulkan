@@ -10,7 +10,7 @@ layout(set = SET_INDEX_PER_FRAME, binding = 0) uniform _PerFrame
 {
     vec4 _TimeParams;
     
-} _PerFrame;
+};
 
 
 layout(set = SET_INDEX_PER_CAMERA, binding = 0) uniform _PerCamera
@@ -21,7 +21,7 @@ layout(set = SET_INDEX_PER_CAMERA, binding = 0) uniform _PerCamera
     mat4 _Matrix_Inv_V;
     mat4 _Matrix_Inv_VP;
 
-} _PerCamera;
+};
 
 
 layout(set = SET_INDEX_PER_OBJECT, binding = 0) uniform _PerObject
@@ -29,6 +29,17 @@ layout(set = SET_INDEX_PER_OBJECT, binding = 0) uniform _PerObject
     mat4 _Matrix_M;
     mat4 _Matrix_Inv_M;
 
-} _PerObject;
+};
+
+
+vec3 TransformObjectToWorld(vec3 posOS)
+{
+    return (_Matrix_M * vec4(posOS, 1)).xyz;
+}
+
+vec4 TransformObjectToClip(vec3 posOS)
+{
+    return _Matrix_VP * _Matrix_M * vec4(posOS, 1);
+}
 
 #endif //_COMMON_GLSL_INC

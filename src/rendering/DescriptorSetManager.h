@@ -26,6 +26,7 @@ private:
     class AutoDescriptorPool
     {
     private:
+        std::vector<VkDescriptorSetLayoutBinding> _setLayoutBindings;
         VkDescriptorSetLayout _setLayout{VK_NULL_HANDLE};
         size_t _maxSetPerPool{0};
 
@@ -42,6 +43,7 @@ private:
 
     public:
         AutoDescriptorPool(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding>& setBindings , size_t maxSetPerPool, VkDescriptorPoolCreateFlags poolFlags = 0);
+        AutoDescriptorPool(VkDevice device, std::vector<VkDescriptorSetLayoutBinding>&& setBindings , size_t maxSetPerPool, VkDescriptorPoolCreateFlags poolFlags = 0);
         ~AutoDescriptorPool();
 
         NONE_COPYABLE_NONE_MOVEABLE(AutoDescriptorPool);
@@ -49,7 +51,7 @@ private:
         VkDescriptorSet AllocDescriptorSet();
         bool FreeDescriptorSet(VkDescriptorSet set);
         VkDescriptorSetLayout GetDescriptorSetLayout() const { return _setLayout; }
-
+        const std::vector<VkDescriptorSetLayoutBinding>& GetDescriptorSetLayoutBindings() const { return _setLayoutBindings; }
         void Reset();
         void Release();
     };
@@ -69,10 +71,12 @@ public:
     static void DeInitailize();
 
     static void RegisterSetLayout(SetIndices setIdx, size_t setHash, const std::vector<VkDescriptorSetLayoutBinding>& setBindings, bool freeableSet = false, size_t maxSetPerPool = 1);
+    static void RegisterSetLayout(SetIndices setIdx, size_t setHash, std::vector<VkDescriptorSetLayoutBinding>&& setBindings, bool freeableSet = false, size_t maxSetPerPool = 1);
     static VkDescriptorSetLayout GetSetLayout(SetIndices setIdx, size_t setHash);
-    static VkDescriptorSet AllocDescriptorSet(SetIndices setIdx, size_t providerHash);
-    static bool FreeDescriptorSet(SetIndices setIdx, size_t providerHash, VkDescriptorSet set);
-    static void ResetDescriptorPool(SetIndices setIdx, size_t providerHash);
+    static const std::vector<VkDescriptorSetLayoutBinding>* GetSetLayoutBindings(SetIndices setIdx, size_t setHash);
+    static VkDescriptorSet AllocDescriptorSet(SetIndices setIdx, size_t setHash);
+    static bool FreeDescriptorSet(SetIndices setIdx, size_t setHash, VkDescriptorSet set);
+    static void ResetDescriptorPool(SetIndices setIdx, size_t setHash);
    
 };
 

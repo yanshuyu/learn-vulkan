@@ -4,6 +4,8 @@
 
 //*************************************************************************Per Frame Data*******************************************************************************
 
+VkPipelineLayout PerFrameData::sPipelineLayout{VK_NULL_HANDLE};
+
 PerFrameData::PerFrameData(Device* device)
 : pDevice(device)
 {
@@ -89,7 +91,7 @@ void PerFrameData::Release()
 
 void PerFrameData::UpdateDataBuffer()
 {
-    if (dataUbo->IsMapped())
+    if (!dataUbo->IsMapped())
         mapedData = dataUbo->Map(Write);
 
     memcpy(mapedData, this, sizeof(PerFrameData));
@@ -97,6 +99,8 @@ void PerFrameData::UpdateDataBuffer()
 
 
 //*************************************************************************Per Camera Data*******************************************************************************
+
+VkPipelineLayout PerCameraData::sPipelineLayout{VK_NULL_HANDLE};
 
 PerCameraData::PerCameraData(Device* device)
 : pDevice(device)
@@ -184,7 +188,7 @@ void PerCameraData::Release()
 
 void PerCameraData::UpdateDataBuffer()
 {
-    if (dataUbo->IsMapped())
+    if (!dataUbo->IsMapped())
         mapedData = dataUbo->Map(Write);
 
     memcpy(mapedData, this, sizeof(PerCameraData));
@@ -268,7 +272,7 @@ void PerObjectData::Release()
 
 void PerObjectData::UpdateDataBuffer()
 {
-    if (dataUbo->IsMapped())
+    if (!dataUbo->IsMapped())
         mapedData = dataUbo->Map(Write);
 
     memcpy(mapedData, this, sizeof(PerObjectData));

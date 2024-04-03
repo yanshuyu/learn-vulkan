@@ -29,6 +29,8 @@ public:
 
     static ShaderProgram* LoadProgram(const char* vs, const char* fs) { return LoadProgram(vs, "main", fs, "main"); };
     static ShaderProgram* LoadProgram(const char* vs, const char* vsName, const char* fs, const char* fsName);
+    static void UnloadProgram(ShaderProgram* program);
+    
     
 };
 

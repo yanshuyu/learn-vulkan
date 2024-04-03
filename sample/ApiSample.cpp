@@ -10,6 +10,7 @@
 #include"rendering\Mesh.h"
 #include"rendering\AssetsManager.h"
 #include"rendering\DescriptorSetManager.h"
+#include"rendering\RenderData.h"
 #include<glm\gtc\matrix_transform.hpp>
 
 
@@ -46,6 +47,7 @@ bool ApiSample::Setup()
     assert(m_pCmdBuffer->IsValid());
     m_CmdBuffer = m_pCmdBuffer->GetHandle();
 
+
     // render pass
     _renderPass.reset(new RenderPass(m_pDevice.get()));
     _renderPass->AddColorAttachment(m_pSwapChain->GetBufferFormat().format, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -60,6 +62,7 @@ bool ApiSample::Setup()
         LOGE("-->ApiSample: failed to create frame buffers!");
         return false; 
     }
+
 
     // triangle mesh
     glm::vec3 triVerts[3] = {
@@ -95,44 +98,27 @@ bool ApiSample::Setup()
     _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _triangleMesh.get(), _renderPass.get()));
     _trianglePipeline->VSSetViewportScissorRect(viewPort, viewPort);
     _trianglePipeline->FBDisableBlend(0);
-    _trianglePipeline->RSSetCullFace(VK_CULL_MODE_NONE);
-    _trianglePipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    _trianglePipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
+    _trianglePipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
     assert(_trianglePipeline->Apply());
 
-    // triangle transform ubo
-    
-    _triangleTransformUBO = m_pDevice->CreateBuffer(sizeof(glm::mat4) * 3, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    float aspectRadio = (float)m_window->GetWidth() / m_window->GetHeight();
-    std::vector<glm::mat4> matrixs(3, glm::mat4(1.f));
-    glm::mat4 adopt_vk_ndc(1);
-    adopt_vk_ndc[1][1] = adopt_vk_ndc[2][2] = -1;
-    //adopt_vk_ndc = glm::inverse(adopt_vk_ndc);
-    matrixs[0] = glm::mat4(1);
-    matrixs[1] = glm::lookAt(glm::vec3(0, 0, -10), glm::vec3(0), glm::vec3(0, 1, 0));
-    matrixs[2] = glm::perspective(glm::radians(30.f), aspectRadio, 0.01f, 100.f) * adopt_vk_ndc;
-    //matrixs[2][1][1] *= -1;
-    _triangleTransformUBO->Map(Write);
-    _triangleTransformUBO->SetData((uint8_t*)matrixs.data(), sizeof(glm::mat4) * matrixs.size(), 0);
-    _triangleTransformUBO->UnMap();
-    
+    _perFrameData.reset(new PerFrameData(m_pDevice.get()));
+    _perCameraData.reset(new PerCameraData(m_pDevice.get()));
+    _perObjectData.reset(new PerObjectData(m_pDevice.get()));
 
-    // triangle descriptor sets
-    assert(DescriptorManager::AllocProgramDescriptorSet(_vertColorProgram, _triangleDescriotorSets));
-    // update descriptor set
-    VkDescriptorBufferInfo triangleTransformUBOInfo{};
-    triangleTransformUBOInfo.buffer = _triangleTransformUBO->GetHandle();
-    triangleTransformUBOInfo.offset = 0;
-    triangleTransformUBOInfo.range = _triangleTransformUBO->GetMemorySize();
+    glm::mat4 V = glm::lookAt(glm::vec3(0,0,-5), glm::vec3(0), glm::vec3(0,1,0));
+    glm::mat4 P = glm::perspectiveFov(glm::radians(30.f), (float)m_window->GetWidth(), (float)m_window->GetHeight(), 0.01f, 100.f);
 
-    VkWriteDescriptorSet triangleTransformUBOWrite{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    triangleTransformUBOWrite.dstSet = _triangleDescriotorSets.at(0);
-    triangleTransformUBOWrite.dstBinding = 0;
-    triangleTransformUBOWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    triangleTransformUBOWrite.dstArrayElement = 0;
-    triangleTransformUBOWrite.descriptorCount = 1;
-    triangleTransformUBOWrite.pBufferInfo = &triangleTransformUBOInfo;
+    _perCameraData->viewMatrix = V;
+    _perCameraData->projectionMatrix = P;
+    _perCameraData->viewProjectionMatrix = P * V;
+    _perCameraData->invViewMatrix = glm::inverse(V);
+    _perCameraData->invViewProjectionMatrix = glm::inverse(_perCameraData->viewProjectionMatrix);
+    _perCameraData->UpdateDataBuffer();
 
-    vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &triangleTransformUBOWrite, 0, nullptr);
+    _perObjectData->modelMatrix = glm::mat4(1);
+    _perObjectData->invModelMatrix = glm::inverse(_perObjectData->modelMatrix);
+    _perObjectData->UpdateDataBuffer();
 
     return true;
 }
@@ -145,11 +131,9 @@ void ApiSample::Release()
 
     _triangleMesh->Release();
 
-    m_pDevice->DestroyBuffer(_triangleTransformUBO);
-
-    DescriptorManager::Release();
-
-    AssetsManager::Release();
+    _perObjectData->Release();
+    _perCameraData->Release();
+    _perFrameData->Release();
    
     _renderPass->Release();
    
@@ -191,7 +175,11 @@ void ApiSample::Step()
 
 void ApiSample::Update()
 {
-    
+    _perFrameData->detalTime = _gameTimer.GetDeltaTime();
+    _perFrameData->detalTimeOver10 = _perFrameData->detalTime / 10;
+    _perFrameData->totalTime = _gameTimer.GetTotalSeconds();
+    _perFrameData->sinTotalTime = std::sin(_perFrameData->totalTime);
+    _perFrameData->UpdateDataBuffer();
 }
 
 
@@ -270,17 +258,13 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
    
     static VkDeviceSize attrBindingZeroOffsets[MaxAttribute] = {0, 0, 0, 0, 0, 0};
     // ***************************** draw call cmds **************************************
-    vkCmdBindDescriptorSets(m_CmdBuffer,
-                            VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            _trianglePipeline->GetLayoutHandle(),
-                            0,
-                            _triangleDescriotorSets.size(),
-                            _triangleDescriotorSets.data(),
-                            0,
-                            nullptr);
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerFrameData::sPipelineLayout, PerFrame, 1, &_perFrameData->dataSet, 0, nullptr);
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerCameraData::sPipelineLayout, PerCamera, 1, &_perCameraData->dataSet, 0, nullptr);
+    
     vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline->GetHandle());
     vkCmdBindVertexBuffers(m_CmdBuffer, 0, _triangleMesh->GetAttributeCount(), _triangleMesh->GetAttributeBindingHandls(), attrBindingZeroOffsets);
     vkCmdBindIndexBuffer(m_CmdBuffer, _triangleMesh->GetIndexBuffer()->GetHandle(), 0, _triangleMesh->GetIndexType());
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_perObjectData->dataSet, 0, nullptr);
     vkCmdDrawIndexed(m_CmdBuffer, _triangleMesh->GetIndicesCount(), 1, 0, 0, 0);
 
     // ***********************************************************************************
