@@ -24,6 +24,8 @@ private:
     size_t m_Width;
     size_t m_Height;
 
+    WindowDesc m_Desc;
+
     std::function<void(size_t, size_t)> m_ResizeCallback;
 
 public:
@@ -43,6 +45,10 @@ public:
     bool ShouldClose() const;
 
     void Close();
+
+    void SetTitle(const char* title);
+
+    const WindowDesc& GetDesc() const { return m_Desc; }
 
     void ProcessEvent() const;
 

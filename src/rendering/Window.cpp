@@ -59,6 +59,8 @@ Window::Window(const WindowDesc& wndDesc)
     m_Width = w;
     m_Height = h;
 
+    m_Desc = wndDesc;
+
 }
 
 
@@ -122,6 +124,12 @@ void Window::Resize(size_t width, size_t height)
  const char** Window::GetRequireVulkanInstanceExtendsion(uint32_t* extendsionCnt)
  {
     return glfwGetRequiredInstanceExtensions(extendsionCnt);
+ }
+
+
+ void Window::SetTitle(const char* title)
+ {
+    glfwSetWindowTitle(m_GlfwWindow, title);
  }
 
 

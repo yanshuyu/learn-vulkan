@@ -18,14 +18,15 @@ void GameTimer::StartFrame()
 
 float GameTimer::EndFrame()
 {
-    float dur = std::chrono::duration_cast<std::chrono::milliseconds>(_clock.now() - _lastFrameTime).count() / 1000.f;
-    _fps = 1 / dur;
+    std::chrono::duration<double, std::milli> milsec = _clock.now() - _lastFrameTime;
+    _deltaTime = milsec.count() / 1000.f;
+    //float dur = std::chrono::duration_cast<std::chrono::milliseconds>(_clock.now() - _lastFrameTime).count() / 1000.f;
+    _fps = 1.f / _deltaTime;
     
     _totalFrame++;
-    _totalDurSec += dur;
+    _totalDurSec += _deltaTime;
     _aveFps =_totalFrame / _totalDurSec;
-    _deltaTime = dur;
-    
-    return dur;
+  
+    return _deltaTime;
 }
 

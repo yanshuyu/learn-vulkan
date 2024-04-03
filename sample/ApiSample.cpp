@@ -180,6 +180,13 @@ void ApiSample::Update()
     _perFrameData->totalTime = _gameTimer.GetTotalSeconds();
     _perFrameData->sinTotalTime = std::sin(_perFrameData->totalTime);
     _perFrameData->UpdateDataBuffer();
+
+    static char _titleStr[256];
+    sprintf(_titleStr, "%s - Fps: %.1f - Ave Fps: %.1f - Delta: %f", m_window->GetDesc().name,
+            _gameTimer.GetFps(),
+            _gameTimer.GetAveFps(),
+            _gameTimer.GetDeltaTime());
+    m_window->SetTitle(_titleStr);
 }
 
 
