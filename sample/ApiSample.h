@@ -1,6 +1,6 @@
 #pragma once
-#include"Application.h"
-#include"core\CoreUtils.h"
+#include<app\Application.h>
+#include<core\CoreUtils.h>
 #include<rendering\GameTimer.h>
 #include<memory>
 #include<vector>
