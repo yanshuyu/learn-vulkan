@@ -75,15 +75,44 @@ void GraphicPipeline::IASetTopology(VkPrimitiveTopology pt, bool ptRestarted)
 }
 */
 
-void GraphicPipeline::VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D scissorRect)
+void GraphicPipeline::VSSetViewport(const Rect& rect)
 {
-    m_Viewport.x = static_cast<float>(viewportRect.offset.x);
-    m_Viewport.y = static_cast<float>(viewportRect.offset.y);
-    m_Viewport.width = static_cast<float>(viewportRect.extent.width);
-    m_Viewport.height = static_cast<float>(viewportRect.extent.height);
-    m_Scissor = scissorRect;
+    m_Viewport.x = rect.x;
+    m_Viewport.y = rect.y;
+    m_Viewport.width = rect.width;
+    m_Viewport.height = rect.height;
+    m_Viewport.minDepth = 0;
+    m_Viewport.maxDepth = 1;
 }
 
+void GraphicPipeline::VSSetScissor(const Rect& rect)
+{
+    m_Scissor.offset.x = rect.x;
+    m_Scissor.offset.y = rect.y;
+    m_Scissor.extent.width = rect.width;
+    m_Scissor.extent.height = rect.height;
+
+}
+
+Rect GraphicPipeline::VSGetScissor() const
+{
+    Rect rect;
+    rect.x = m_Viewport.x;
+    rect.y = m_Viewport.y;
+    rect.width = m_Viewport.width;
+    rect.height = m_Viewport.height;
+    return rect;
+}
+
+Rect GraphicPipeline::VSGetViewport() const
+{
+    Rect rect;
+    rect.x = m_Scissor.offset.x;
+    rect.y = m_Scissor.offset.y;
+    rect.width = m_Scissor.extent.width;
+    rect.height = m_Scissor.extent.height;
+    return rect;
+}
 
  void GraphicPipeline::RSSetDepthBias(float constFactor, float slotFactor, float clamp)
  {

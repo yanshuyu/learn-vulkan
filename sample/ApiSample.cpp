@@ -92,13 +92,13 @@ bool ApiSample::Setup()
 
     
     // triangle pipeline
-    VkRect2D viewPort{};
-    viewPort.offset = {0, 0};
-    viewPort.extent = {(uint32_t)m_window->GetWidth(),(uint32_t)m_window->GetHeight()};
+    float w = m_window->GetDesc().windowWidth;
+    float h = m_window->GetDesc().windowHeight;
     _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _triangleMesh.get(), _renderPass.get()));
-    _trianglePipeline->VSSetViewportScissorRect(viewPort, viewPort);
+    _trianglePipeline->VSSetViewport({0.f, h, w, -h});
+    _trianglePipeline->VSSetScissor({0.f, 0.f, w, h});
     _trianglePipeline->FBDisableBlend(0);
-    _trianglePipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
+    _trianglePipeline->RSSetCullFace(VK_CULL_MODE_NONE);
     _trianglePipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
     assert(_trianglePipeline->Apply());
 
@@ -106,7 +106,7 @@ bool ApiSample::Setup()
     _perCameraData.reset(new PerCameraData(m_pDevice.get()));
     _perObjectData.reset(new PerObjectData(m_pDevice.get()));
 
-    glm::mat4 V = glm::lookAt(glm::vec3(0,0,-5), glm::vec3(0), glm::vec3(0,1,0));
+    glm::mat4 V = glm::lookAt(glm::vec3(0,0,5), glm::vec3(0), glm::vec3(0,1,0));
     glm::mat4 P = glm::perspectiveFov(glm::radians(30.f), (float)m_window->GetWidth(), (float)m_window->GetHeight(), 0.01f, 100.f);
 
     _perCameraData->viewMatrix = V;

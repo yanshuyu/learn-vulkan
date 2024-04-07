@@ -73,18 +73,11 @@ public:
     */
 
     // viewport & scissor
-    void VSSetViewportScissorRect(VkRect2D viewportRect, VkRect2D scissorRect);
-    VkRect2D VSGetScissorRect() const { return m_Scissor; }
-    VkRect2D VSGetViewportRect() const 
-    { 
-        VkRect2D rect;
-        rect.offset.x = m_Viewport.x;
-        rect.offset.y = m_Viewport.y;
-        rect.extent.width = m_Viewport.width;
-        rect.extent.height = m_Viewport.height;
-        return  rect;
-    }
-
+    void VSSetViewport(const Rect& viewPortRect);
+    void VSSetScissor(const Rect& scissorRect);
+    Rect VSGetScissor() const;
+    Rect VSGetViewport() const;
+    
     // rasterization
     void RSSetCullFace(VkCullModeFlags cullMode) { m_RSCreateInfo.cullMode = cullMode; }
     void RSSetFillMode(VkPolygonMode fillMode) { m_RSCreateInfo.polygonMode = fillMode; }

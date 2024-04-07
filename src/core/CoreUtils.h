@@ -71,6 +71,13 @@ enum Attribute
 
 typedef uint32_t index_t;
 
+struct Rect
+{
+    float x;
+    float y;
+    float width;
+    float height;
+};
 
 
 // Functions

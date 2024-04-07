@@ -21,6 +21,9 @@ int main(int, char**)
     WindowDesc wndDesc{};
     AppDesc appDesc{};
 
+    std::vector<const char*> deviceExtNames{};
+    deviceExtNames.push_back(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+
     wndDesc.name = "Vulkan Api Sample";
     wndDesc.resizeble = false;
     wndDesc.windowWidth = 1280;
@@ -35,7 +38,9 @@ int main(int, char**)
     appDesc.backBufferClearColor[1] = 0;
     appDesc.backBufferClearColor[2] = 1;
     appDesc.backBufferClearColor[3] = 1;
-
+    appDesc.enabledDeviceExtendsionNames = deviceExtNames.data();
+    appDesc.enabledDeviceExtendsionCount = deviceExtNames.size();
+    
     try
     {
         if(!appController.Init(wndDesc, appDesc, CreateApiSample))
