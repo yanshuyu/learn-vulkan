@@ -276,3 +276,9 @@ void DescriptorSetManager::DeInitailize()
     }
     
 }
+
+
+size_t DescriptorSetManager::DefaultProgramSetHash(const ShaderProgram* program)
+{
+    return std::hash<std::string>()(program->GetName());
+}

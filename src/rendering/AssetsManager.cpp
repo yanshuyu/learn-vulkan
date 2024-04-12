@@ -2,6 +2,9 @@
 #include"core\Device.h"
 #include"core\ShaderProgram.h"
 #include"rendering\ShaderReflection.h"
+#include"rendering\Texture2D.h"
+#include"rendering\DescriptorSetManager.h"
+#include<stb\stb_image.h>
 #include<fstream>
 
 #define PRPGRAM_KEY(vs, fs) std::string
@@ -61,6 +64,10 @@ ShaderProgram* AssetsManager::LoadProgram(const char* vs, const char* vsName, co
     program->AddShader(fsi);
     ShaderReflection::Parse(program);
     assert(program->Apply());
+
+    auto materialSetBindings = program->GetDescriptorSetBindings(PerMaterial);
+    if (materialSetBindings)
+        DescriptorSetManager::RegisterSetLayout(PerMaterial, 0, *materialSetBindings, true, 2);
 
     return program;
 }

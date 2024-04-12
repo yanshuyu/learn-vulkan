@@ -192,3 +192,101 @@ bool CommandBuffer::CopyBuffer(const Buffer* src,
 
     return true;
 }
+
+void CommandBuffer::TransitionLayout(VkImage img,
+                                     VkImageSubresourceRange imgSubRange,
+                                     VkImageLayout oldLayout,
+                                     VkImageLayout newLayout,
+                                     VkPipelineStageFlags srcStageMask,
+                                     VkPipelineStageFlags dstStageMas)
+{
+    if (oldLayout == newLayout)
+        return;
+
+    VkImageMemoryBarrier imgBarrier{VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    imgBarrier.image = img;
+    imgBarrier.subresourceRange = imgSubRange;
+    imgBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imgBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    imgBarrier.oldLayout = oldLayout;
+    imgBarrier.newLayout = newLayout;
+    
+    // Source access mask controls actions that have to be finished on the old layout
+	// before it will be transitioned to the new layout
+    switch (oldLayout)
+    {
+    case VK_IMAGE_LAYOUT_UNDEFINED:
+        imgBarrier.srcAccessMask = VK_ACCESS_NONE;
+        break;
+    case VK_IMAGE_LAYOUT_PREINITIALIZED:
+        imgBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        imgBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        imgBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+        imgBarrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+        imgBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        imgBarrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        imgBarrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        break;
+    default:
+        break;
+    }
+
+    // Destination access mask controls the dependency for the new image layout
+    switch (newLayout)
+    {
+    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+        imgBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+        imgBarrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: // undefine -> shader read
+        if (imgBarrier.srcAccessMask == VK_ACCESS_NONE)
+            imgBarrier.srcAccessMask = VK_ACCESS_HOST_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+        imgBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL:
+        imgBarrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+        imgBarrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        break;
+    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+    case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        imgBarrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    default:
+        break;
+    }
+
+    vkCmdPipelineBarrier(_vkCmdBuffer, srcStageMask, dstStageMas, 0, 0, nullptr, 0, nullptr, 1, &imgBarrier);
+
+}
+
+
+
+void CommandBuffer::TransitionLayout( CommandBuffer* cmd,
+                        VkImage img,
+                        VkImageSubresourceRange imgSubRange,
+                        VkImageLayout oldLayout,
+                        VkImageLayout newLayout,
+                        VkPipelineStageFlags srcStageMask,
+                        VkPipelineStageFlags dstStageMask)
+{
+    cmd->Begin();
+    cmd->TransitionLayout(img, imgSubRange, oldLayout, newLayout, srcStageMask, dstStageMask);
+    cmd->End();
+    cmd->ExecuteSync();   
+}

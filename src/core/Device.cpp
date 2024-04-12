@@ -23,13 +23,7 @@ Device::Device()
           [](Fence *pFence)
           { assert(!pFence->IsValid()); },
           [this]()
-          { return new Fence(this); }),
-      _ImagePool(
-          nullptr,
-          [](Image *pImg)
-          { assert(!pImg->IsValid()); },
-          [this]()
-          { return new Image(this); })
+          { return new Fence(this); })
 {
     for (size_t i = 0; i < QueueFamilyIndices::MAX_INDEX; i++)
     {
@@ -90,7 +84,6 @@ void Device::Release()
     _CmdBufPool.CleanUp();
     _BufferPool.CleanUp();
     _FencePool.CleanUp();
-    _ImagePool.CleanUp();
 
     // destory command pool will destroy command buffers allocate from it
     std::set<VkCommandPool> compactCmdPools;
@@ -402,50 +395,6 @@ bool Device::DestroyBuffer(Buffer* pBuffer)
     return true;
 }
 
-Image *Device::CreateImage(VkFormat fmt,
-                           uint32_t width,
-                           uint32_t height,
-                           uint32_t depth,
-                           VkImageUsageFlags usage,
-                           VkMemoryPropertyFlags memProp,
-                           bool genMipMaps,
-                           uint32_t layerCnt,
-                           uint32_t sampleCnt,
-                           bool linearTiling)
-{
-    if (!IsValid())
-    {
-        LOGW("Try to create Image with invalid Device({})!", (void *)this);
-        return nullptr;
-    }
-
-    ImageDesc desc{};
-    desc.format = fmt;
-    desc.extents = {width, height, depth};
-    desc.layers = layerCnt;
-    desc.sampleCount = sampleCnt;
-    desc.generalMipMaps = genMipMaps;
-    desc.linearTiling = linearTiling;
-    desc.memFlags = memProp;
-    desc.usageFlags = usage;
-
-    Image* pImage = _ImagePool.Get(); 
-    assert(pImage->_create(desc));
-    return pImage;
-}
-
-bool Device::DestroyImage(Image *pImage)
-{
-    if (pImage->GetDevice() != this)
-    {
-        LOGW("Try to release a Image({}) create by device({}) with diffrence device({})!", (void*)pImage, (void*)pImage->GetDevice(), (void*)this);
-        return false;
-    }
-
-    pImage->Release();
-    _ImagePool.Return(pImage);
-    return true;
-}
 
 Fence* Device::CreateFence(bool signaled)
 {
@@ -633,7 +582,7 @@ uint32_t Device::GetDeviceLimit(DeviceLimits limit) const
 
 bool Device::IsFormatFeatureSupport(VkFormat fmt, VkFormatFeatureFlagBits fmtFeature, bool linearTiling) const
 {
-    if (IsValid())
+    if (!IsValid())
         return false;
 
     VkFormatProperties fmtProps{};

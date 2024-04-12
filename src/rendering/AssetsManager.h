@@ -6,12 +6,15 @@
 
 class Device;
 class ShaderProgram;
+class Texture2D;
 
 class AssetsManager
 {
 private:
     static std::unordered_map<std::string, std::unique_ptr<ShaderProgram>> s_programs;
     static std::unordered_map<std::string, VkShaderModule> s_shaderModules;
+
+    static std::unordered_map<std::string, std::unique_ptr<Texture2D>> s_tex2Ds;    
 
     static Device* s_pDevice;
     const static std::string s_shaderDir;
@@ -31,6 +34,9 @@ public:
     static ShaderProgram* LoadProgram(const char* vs, const char* vsName, const char* fs, const char* fsName);
     static void UnloadProgram(ShaderProgram* program);
     
+    static Texture2D* LoadTexture2D(const char* path);
+    static void UnloadTexture2D(const char* path);
+    static void UnloadTexture2D(Texture2D* tex);
     
 };
 

@@ -43,7 +43,7 @@ public:
     NONE_COPYABLE_NONE_MOVEABLE(ShaderProgram)
 
     void SetName(const char* name) { _name = name; }
-    const char* GetName() const { return _name.c_str(); }
+    const std::string& GetName() const { return _name; }
 
     bool AddShader(const ShaderStageInfo& shaderInfo);
     bool HasShaderStage(VkShaderStageFlagBits stage) const;
@@ -57,10 +57,10 @@ public:
     const std::vector<VertexAttributeInfo>& GetAttributes() const { return _attrInfos; }
 
     bool AddDescriptorSetBinding(size_t setIdx, size_t bindingLocation, VkDescriptorType resourceType, size_t resourceArrayElementCnt, VkShaderStageFlags accessStages);
+    const std::vector<VkDescriptorSetLayoutBinding>* GetDescriptorSetBindings(size_t setIdx) const;
     size_t GetDescriptorSetCount() const { return _setLayoutBindings.size(); }
 
     VkPipelineLayout GetPipelineLayout() const { return _pipelineLayout; }
-
     Device* GetDevice() const { return _pDevice; }
 
     bool Apply();

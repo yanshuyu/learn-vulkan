@@ -12,9 +12,11 @@ class ShaderProgram;
 class GraphicPipeline;
 class CommandBuffer;
 class RenderPass;
+class Texture2D;
 struct PerFrameData;
 struct PerCameraData;
 struct PerObjectData;
+
 
 class ApiSample : public Application
 {
@@ -35,10 +37,12 @@ private:
     VkDeviceMemory m_DepthBufferMemory{VK_NULL_HANDLE};
     std::vector<VkFramebuffer> m_SwapChainFrameBuffers{};
     
-    // triangle
-    std::unique_ptr<Mesh> _triangleMesh{};
+    // quad
+    std::unique_ptr<Mesh> _quad{};
     ShaderProgram* _vertColorProgram{nullptr};
-    std::unique_ptr<GraphicPipeline> _trianglePipeline{};
+    std::unique_ptr<GraphicPipeline> _quadPipeline{};
+    VkDescriptorSet _quadSet{VK_NULL_HANDLE};
+    std::unique_ptr<Texture2D> _vkLogoTex{};
 
     GameTimer _gameTimer{};
 

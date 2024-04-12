@@ -5,7 +5,7 @@
 #include<memory>
 
 class Device;
-
+class ShaderProgram;
 
 enum SetIndices
 {
@@ -78,5 +78,6 @@ public:
     static bool FreeDescriptorSet(SetIndices setIdx, size_t setHash, VkDescriptorSet set);
     static void ResetDescriptorPool(SetIndices setIdx, size_t setHash);
    
+    static size_t DefaultProgramSetHash(const ShaderProgram* program);
 };
 

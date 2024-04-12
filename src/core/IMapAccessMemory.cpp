@@ -44,7 +44,7 @@ uint8_t *IMapAccessMemory::Map(MapAcess mode)
       _MappedData = nullptr;
   }
 
-  size_t IMapAccessMemory::SetData(uint8_t *data, size_t dataLen, size_t offset)
+  size_t IMapAccessMemory::SetData(const uint8_t *data, size_t dataLen, size_t offset)
   {
      //Map();
     if (!IsMapped())

@@ -7,50 +7,54 @@ class Device;
 
 struct ImageDesc
 {
-    VkFormat format;
-    VkExtent3D extents;
-    uint32_t layers;
-    uint32_t sampleCount;
-    VkImageUsageFlags usageFlags;
-    VkMemoryPropertyFlags memFlags;
-    bool generalMipMaps;
-    bool linearTiling;
+    VkFormat format{VK_FORMAT_MAX_ENUM};
+    VkExtent3D extents{0,0,0};
+    uint32_t layers{1};
+    uint32_t mipLeves{1};
+    uint32_t sampleCount{1};
+    VkFilter mipLevelFilter{VK_FILTER_LINEAR};
+    VkImageUsageFlags usageFlags{0};
+    VkImageCreateFlags flags{0};
+    bool linearTiling{false};
 };
 
 
-class Image : public IMapAccessMemory, VKDeviceResource
+class Image : public IMapAccessMemory, public VKDeviceResource
 {
     friend class Device;
 
-private:
+protected:
     VkImage m_vkImage{VK_NULL_HANDLE};
     VkDeviceMemory m_ImageMem{VK_NULL_HANDLE};
+    VkMemoryPropertyFlags m_MemProps{0};
     ImageDesc m_Desc{};
     uint32_t m_MemSz{0};
-    uint32_t m_MipLevelCount{1};
-    std::vector<VkImageView> m_views{};
+    VkImageView m_View{VK_NULL_HANDLE};
+    VkImageLayout m_Layout{VK_IMAGE_LAYOUT_UNDEFINED};
 
 protected:
-    bool _create(const ImageDesc &desc);
-    void Release() override;
+    virtual VkImageView CreateView(const ImageDesc& desc);
 
 public:
     Image(Device* pDevice = nullptr);
-    ~Image() { assert(!IsValid()); }
+    virtual ~Image() { Release(); }
 
     NONE_COPYABLE_NONE_MOVEABLE(Image)
 
-    VkImageView CreateView(VkImageViewType viewType, VkImageAspectFlags viewAspect, uint32_t baseArrayLayer, uint32_t layerCnt, uint32_t baseMipLevel, uint32_t levelCnt );
-    bool DestroyView(VkImageView view);
-    bool IsValid() const override { return VKHANDLE_IS_NOT_NULL(m_vkImage) && VKHANDLE_IS_NOT_NULL(m_ImageMem); }
+    bool Create(const ImageDesc &desc);
+    virtual void SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer = 0);
+    virtual void Release() override;
+    
+    bool IsCreate() const { return VKHANDLE_IS_NOT_NULL(m_vkImage) && VKHANDLE_IS_NOT_NULL(m_ImageMem); }
+    virtual bool IsValid() const override { return VKHANDLE_IS_NOT_NULL(m_vkImage) && VKHANDLE_IS_NOT_NULL(m_ImageMem) && VKHANDLE_IS_NOT_NULL(m_View); }
     bool CanMap() const override { return IsValid() && IMapAccessMemory::CanMap() && m_Desc.linearTiling; }
     VkImage GetHandle() const { return m_vkImage; }
     VkDevice GetDeviceHandle() const override;
     VkDeviceMemory GetMemory() const override { return m_ImageMem; }
-    VkMemoryPropertyFlags GetMemoryProperties() const override { return m_Desc.memFlags; }
+    VkMemoryPropertyFlags GetMemoryProperties() const override { return m_MemProps; }
     uint32_t GetMemorySize() const override { return m_MemSz; }
-    uint32_t GetMipMapCount() const { return m_MipLevelCount; }
-    ImageDesc GetDesc() const { return m_Desc; }
+    const ImageDesc& GetDesc() const { return m_Desc; }
+    VkImageView GetView() const { return m_View; }
 };
 
 

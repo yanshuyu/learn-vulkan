@@ -35,7 +35,6 @@ private:
     ObjectPool<CommandBuffer> _CmdBufPool;
     ObjectPool<Buffer> _BufferPool;
     ObjectPool<Fence> _FencePool;
-    ObjectPool<Image> _ImagePool;
 
 public:
     Device();
@@ -88,17 +87,6 @@ public:
     Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
     bool DestroyBuffer(Buffer* pBuffer);
 
-    Image *CreateImage(VkFormat fmt,
-                       uint32_t width,
-                       uint32_t height,
-                       uint32_t depth,
-                       VkImageUsageFlags usage,
-                       VkMemoryPropertyFlags memProp,
-                       bool genMipMaps = false,
-                       uint32_t layerCnt = 1,
-                       uint32_t sampleCnt = 1,
-                       bool linearTiling = false);
-    bool DestroyImage(Image* pImage);
 
     Fence* CreateFence(bool signaled = false);
     bool DestroyFence(Fence* pFence);

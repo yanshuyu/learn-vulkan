@@ -29,7 +29,7 @@ public:
     bool IsMapped() const { return _MappedData != nullptr; }
     uint8_t* Map(MapAcess mode);
     void UnMap();
-    size_t SetData(uint8_t* data, size_t dataLen, size_t offset);
+    size_t SetData(const uint8_t* data, size_t dataLen, size_t offset);
     size_t GetData(uint8_t* buffer, size_t bufLen, size_t offset);
 
 };

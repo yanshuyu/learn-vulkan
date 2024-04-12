@@ -75,9 +75,9 @@ static bool _vertex_color_parser(ShaderProgram* program)
 {
     program->AddAttribute(Position, 0);
     program->AddAttribute(Color, 1);
+    program->AddAttribute(UV0, 2);
 
-    // add dummy per material layout binding for pipeline layout compatible
-    program->AddDescriptorSetBinding(PerMaterial, -1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, 0);
+    program->AddDescriptorSetBinding(PerMaterial, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, VK_SHADER_STAGE_FRAGMENT_BIT);
     
     return true;
 }

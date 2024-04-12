@@ -10,6 +10,7 @@
 #include<rendering\Mesh.h>
 #include<rendering\AssetsManager.h>
 #include<rendering\DescriptorSetManager.h>
+#include<rendering\Texture2D.h>
 #include<rendering\RenderData.h>
 #include<glm\gtc\matrix_transform.hpp>
 
@@ -64,28 +65,38 @@ bool ApiSample::Setup()
     }
 
 
+
     // triangle mesh
-    glm::vec3 triVerts[3] = {
-        {-1, 0, 0},
-        {0, 1, 0},
-        {1, 0, 0},
+    glm::vec3 verts[] = {
+        {-0.5, -0.5, 0},
+        {-0.5, 0.5, 0},
+        {0.5, 0.5, 0},
+        {0.5, -0.5, 0},
     };
 
-    glm::vec4 triColors[3] = {
-        {1, 0, 0, 1},
-        {0, 1, 0, 1},
-        {0, 0, 1, 1},
+    glm::vec4 colors[] = {
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
     };
 
-    index_t triIndices[3] = {0, 1, 2};
+    glm::vec2 uvs[] = {
+        {0, 1},
+        {0, 0},
+        {1, 0},
+        {1, 1},
+    };
 
-    
-    _triangleMesh.reset(new Mesh(m_pDevice.get()));
-    _triangleMesh->SetVertices(triVerts, 3);
-    _triangleMesh->SetColors(triColors, 3);
-    _triangleMesh->SetIndices(triIndices, 3);
-    _triangleMesh->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    assert(_triangleMesh->Apply());
+    index_t triIndices[] = {0, 1, 2, 2, 3, 0};
+
+    _quad.reset(new Mesh(m_pDevice.get()));
+    _quad->SetVertices(verts, 4);
+    _quad->SetColors(colors, 4);
+    _quad->SetUV1s(uvs, 4);
+    _quad->SetIndices(triIndices, 6);
+    _quad->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    assert(_quad->Apply());
     
     // vertex color shader program
     _vertColorProgram = AssetsManager::LoadProgram("vertex_color.vert.spv", "vertex_color.frag.spv");
@@ -94,7 +105,7 @@ bool ApiSample::Setup()
     // triangle pipeline
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
-    _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _triangleMesh.get(), _renderPass.get()));
+    _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _quad.get(), _renderPass.get()));
     _trianglePipeline->VSSetViewport({0.f, h, w, -h});
     _trianglePipeline->VSSetScissor({0.f, 0.f, w, h});
     _trianglePipeline->FBDisableBlend(0);

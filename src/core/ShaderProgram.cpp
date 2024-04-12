@@ -112,6 +112,16 @@ bool ShaderProgram::AddDescriptorSetBinding(size_t setIdx,
 }
 
 
+const std::vector<VkDescriptorSetLayoutBinding>* ShaderProgram::GetDescriptorSetBindings(size_t setIdx) const
+{
+    auto result = _setLayoutBindings.find(setIdx);
+    if (result == _setLayoutBindings.end())
+        return nullptr;
+    
+    return &result->second;
+}
+
+
 
 bool ShaderProgram::Apply()
 {

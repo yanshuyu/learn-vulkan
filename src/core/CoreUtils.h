@@ -52,6 +52,7 @@ enum DeviceLimits
 {
     LimitsBegin,
     maxSamplerAnisotropy,
+    maxMipLodBias,
     maxFrameBufferColorSampleCount,
     maxFrameBufferDepthSampleCount,
     // will add more
@@ -78,6 +79,24 @@ struct Rect
     float width;
     float height;
 };
+
+
+struct TextureImportSetting
+{
+    bool genMipMap;
+    bool srgbImage;
+    bool readWriteEnable;
+    float anisotropyFactor;
+    float mipLodBias;
+    VkFilter mipLevelFilterMode;
+    VkFilter filterMode;
+    VkSamplerMipmapMode mipMapMode;
+    VkSamplerAddressMode uAddressMode;
+    VkSamplerAddressMode vAddressMode;
+    VkSamplerAddressMode wAddressMode;
+    VkBorderColor borderColor;
+};
+
 
 
 // Functions
@@ -177,6 +196,8 @@ VkImageType vkutils_get_image_type_form_extents(VkExtent3D extents);
 
 uint32_t vkutils_get_mip_level_count_from_extents(VkExtent3D extents);
 
+VkImageViewType vkutils_get_image_view_type(VkExtent3D extents, size_t layers = 1, VkImageCreateFlags flags = 0);
+
 VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt);
 
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& arr, const char* name, bool enabled);
@@ -191,3 +212,8 @@ uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, De
 uint32_t vkutils_fetch_max_sample_count(VkSampleCountFlags sampleCountFlags);
 
 VkShaderStageFlagBits vkutils_get_shader_stage_bit_from_file_extendsion(const char* ext);
+
+class Device;
+float vkutils_remap_anisotropy_level(float anisotropy01, const Device* pdevice);
+
+uint8_t* vkutils_stb_load_texture(Device* pdevice, const char* srcFile, bool srgb, bool readWriteEnable, int* w, int* h, VkFormat* fmt, int* dataSz);

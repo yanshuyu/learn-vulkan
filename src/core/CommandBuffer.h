@@ -57,6 +57,21 @@ public:
                       VkAccessFlags waitAccessMask,
                       VkPipelineStageFlags signalStageMask,
                       VkAccessFlags signalAccessMask);
+
+    void TransitionLayout(VkImage img,
+                          VkImageSubresourceRange imgSubRange,
+                          VkImageLayout oldLayout,
+                          VkImageLayout newLayout,
+                          VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                          VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
+
+    static void TransitionLayout( CommandBuffer* cmd,
+                        VkImage img,
+                        VkImageSubresourceRange imgSubRange,
+                        VkImageLayout oldLayout,
+                        VkImageLayout newLayout,
+                        VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                        VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
 };
 
 

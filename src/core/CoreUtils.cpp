@@ -1,4 +1,6 @@
 #include"core\CoreUtils.h"
+#include"core\Device.h"
+#include<stb\stb_image.h>
 
 VkImageAspectFlags vkutils_get_image_input_asepect_mask(VkFormat fmt)
 {
@@ -65,9 +67,40 @@ VkImageType vkutils_get_image_type_form_extents(VkExtent3D extents)
 
 uint32_t vkutils_get_mip_level_count_from_extents(VkExtent3D extents)
 {
-    uint32_t x = std::max(extents.width, extents.height);
+    uint32_t x =  std::max({extents.width, extents.height, extents.depth});
     x = std::log2(x);
     return x + 1;
+}
+
+
+VkImageViewType vkutils_get_image_view_type(VkExtent3D extents, size_t layers, VkImageCreateFlags flags)
+{
+    if (flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT && layers % 6 == 0)
+    {
+        return layers / 6 > 1 ? VK_IMAGE_VIEW_TYPE_CUBE_ARRAY : VK_IMAGE_VIEW_TYPE_CUBE;
+    }
+
+    VkImageViewType allViewTypes[] = {
+        VK_IMAGE_VIEW_TYPE_1D,
+        VK_IMAGE_VIEW_TYPE_1D_ARRAY,
+        VK_IMAGE_VIEW_TYPE_2D,
+        VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+        VK_IMAGE_VIEW_TYPE_3D,
+        VK_IMAGE_VIEW_TYPE_MAX_ENUM,
+    };
+
+    size_t idx = 0;
+    if (extents.height > 0)
+        idx++;
+    if (extents.depth > 0)
+        idx++;
+    
+    idx *= 2;
+
+    if (layers > 1)
+        idx++;
+
+    return allViewTypes[idx];
 }
 
 
@@ -188,6 +221,9 @@ uint32_t vkutils_fetch_device_limit(const VkPhysicalDeviceLimits& limitProps, De
     case DeviceLimits::maxFrameBufferDepthSampleCount:
         return vkutils_fetch_max_sample_count(limitProps.framebufferDepthSampleCounts);
     
+    case DeviceLimits::maxMipLodBias:
+        return limitProps.maxSamplerLodBias;
+
     default:
         return 0;
     }
@@ -246,4 +282,57 @@ VkShaderStageFlagBits vkutils_get_shader_stage_bit_from_file_extendsion(const ch
     
     return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
     
+}
+
+
+float vkutils_remap_anisotropy_level(float anisotropy01, const Device* pdevice)
+{
+    if (!pdevice->IsFeatureEnabled(DeviceFeatures::samplerAnisotropy))
+        return 0;
+    
+    float maxAnisotropy = pdevice->GetDeviceLimit(DeviceLimits::maxSamplerAnisotropy);
+    return std::clamp(anisotropy01, 0.f, 1.f) * maxAnisotropy;
+}
+
+
+uint8_t* vkutils_stb_load_texture(Device* pdevice, const char* srcFile, bool srgb, bool readWriteEnable, int* w, int* h, VkFormat* fmt, int* dataSz)
+{
+    std::string fullPath(ASSETS_DIR);
+    fullPath += srcFile;
+    int _w, _h, c;
+    if (!stbi_info(fullPath.c_str(), &_w, &_h, &c))
+        return nullptr;
+
+    //     channels     components
+    //       1           grey
+    //       2           grey, alpha (vulkan uncompatitble, force to load at x-x-x-1 fmt)
+    //       3           red, green, blue (vulkan unsupport, force to load at r-g-b-1 fmt)
+    //       4           red, green, blue, alpha
+
+    VkFormat fmts[] = {
+        VK_FORMAT_R8_UNORM,
+        VK_FORMAT_R8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_FORMAT_R8G8B8A8_SRGB,
+    };
+
+    if (c > 1 && c < 4)
+        c = 4;
+
+    int fmtIdx = (int)(c / 2.f) + srgb;
+    if (!pdevice->IsFormatFeatureSupport(fmts[fmtIdx], VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT, readWriteEnable))
+    {
+        LOGE("load texture({}) of fmt({}) is not support!", srcFile, fmts[fmtIdx]);
+        return nullptr;
+    }
+
+    int _c;
+    uint8_t* pdata = stbi_load(fullPath.c_str(), &_w, &_h, &_c, c);
+    assert(pdata);
+
+    *w = _w;
+    *h = _h;
+    *fmt = fmts[fmtIdx];
+    *dataSz = _w * _h * c;
+    return pdata;
 }
