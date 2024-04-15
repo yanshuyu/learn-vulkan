@@ -25,6 +25,7 @@ public:
     VkFormat GetFormat() const { return m_Desc.format; }
     size_t GetMipMapLevelCount() const { return m_Desc.mipLeves; }
     bool IsReadWriteEnable() const { return m_Desc.linearTiling; }
-    const char* GetFilePath() const { return _srcFile.c_str(); } 
+    const char* GetFilePath() const { return _srcFile.c_str(); }
+    VkSampler GetSampler() const { return _sampler; } 
 };
 

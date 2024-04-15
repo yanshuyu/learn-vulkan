@@ -101,17 +101,30 @@ bool ApiSample::Setup()
     // vertex color shader program
     _vertColorProgram = AssetsManager::LoadProgram("vertex_color.vert.spv", "vertex_color.frag.spv");
 
+    _vkLogoTex.reset(new Texture2D(m_pDevice.get()));
+    _vkLogoTex->LoadFromFile("textures/VulkanCar_678x452.jpg");
     
     // triangle pipeline
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
-    _trianglePipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _quad.get(), _renderPass.get()));
-    _trianglePipeline->VSSetViewport({0.f, h, w, -h});
-    _trianglePipeline->VSSetScissor({0.f, 0.f, w, h});
-    _trianglePipeline->FBDisableBlend(0);
-    _trianglePipeline->RSSetCullFace(VK_CULL_MODE_NONE);
-    _trianglePipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
-    assert(_trianglePipeline->Apply());
+    _quadPipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _quad.get(), _renderPass.get()));
+    _quadPipeline->VSSetViewport({0.f, h, w, -h});
+    _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
+    _quadPipeline->FBDisableBlend(0);
+    _quadPipeline->RSSetCullFace(VK_CULL_MODE_NONE);
+    _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
+    assert(_quadPipeline->Apply());
+
+    _quadSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_vertColorProgram));
+    VkDescriptorImageInfo texInfo{_vkLogoTex->GetSampler(), _vkLogoTex->GetView(), _vkLogoTex->GetLayout()};
+    VkWriteDescriptorSet texWriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    texWriteSet.dstSet = _quadSet;
+    texWriteSet.dstBinding = 0;
+    texWriteSet.dstArrayElement = 0;
+    texWriteSet.descriptorCount = 1;
+    texWriteSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texWriteSet.pImageInfo = &texInfo;
+    vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &texWriteSet, 0, nullptr);
 
     _perFrameData.reset(new PerFrameData(m_pDevice.get()));
     _perCameraData.reset(new PerCameraData(m_pDevice.get()));
@@ -138,10 +151,9 @@ bool ApiSample::Setup()
 
 void ApiSample::Release()
 {
-    _trianglePipeline->Release();
-
-    _triangleMesh->Release();
-
+    _vkLogoTex->Release();
+    _quadPipeline->Release();
+    _quad->Release();
     _perObjectData->Release();
     _perCameraData->Release();
     _perFrameData->Release();
@@ -278,12 +290,12 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     // ***************************** draw call cmds **************************************
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerFrameData::sPipelineLayout, PerFrame, 1, &_perFrameData->dataSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerCameraData::sPipelineLayout, PerCamera, 1, &_perCameraData->dataSet, 0, nullptr);
-    
-    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline->GetHandle());
-    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _triangleMesh->GetAttributeCount(), _triangleMesh->GetAttributeBindingHandls(), attrBindingZeroOffsets);
-    vkCmdBindIndexBuffer(m_CmdBuffer, _triangleMesh->GetIndexBuffer()->GetHandle(), 0, _triangleMesh->GetIndexType());
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerMaterial, 1, &_quadSet, 0, nullptr);
+    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _quadPipeline->GetHandle());
+    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _quad->GetAttributeCount(), _quad->GetAttributeBindingHandls(), attrBindingZeroOffsets);
+    vkCmdBindIndexBuffer(m_CmdBuffer, _quad->GetIndexBuffer()->GetHandle(), 0, _quad->GetIndexType());
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_perObjectData->dataSet, 0, nullptr);
-    vkCmdDrawIndexed(m_CmdBuffer, _triangleMesh->GetIndicesCount(), 1, 0, 0, 0);
+    vkCmdDrawIndexed(m_CmdBuffer, _quad->GetIndicesCount(), 1, 0, 0, 0);
 
     // ***********************************************************************************
 

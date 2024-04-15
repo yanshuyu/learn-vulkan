@@ -90,9 +90,9 @@ VkImageViewType vkutils_get_image_view_type(VkExtent3D extents, size_t layers, V
     };
 
     size_t idx = 0;
-    if (extents.height > 0)
+    if (extents.height > 1)
         idx++;
-    if (extents.depth > 0)
+    if (extents.depth > 1)
         idx++;
     
     idx *= 2;

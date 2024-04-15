@@ -111,7 +111,7 @@ void Image::SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer)
 
         // copy pixel to image layer's mip level 0
         VkImageSubresourceLayers imgMipLevelLayer{VK_IMAGE_ASPECT_COLOR_BIT, 0, layer, 1};
-        VkBufferImageCopy bufImgcopyInfo;
+        VkBufferImageCopy bufImgcopyInfo{};
         bufImgcopyInfo.bufferOffset = 0;
         bufImgcopyInfo.imageExtent = m_Desc.extents;
         bufImgcopyInfo.imageOffset = {0, 0, 0};
@@ -167,8 +167,8 @@ void Image::SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer)
 
 void Image::Release()
 {
-    if (!IsValid())
-        return;
+    // if (!IsValid())
+    //     return;
 
     // release views
     if (VKHANDLE_IS_NOT_NULL(m_View))

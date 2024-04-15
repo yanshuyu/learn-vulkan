@@ -1,5 +1,7 @@
 #version 460
 
+#include "common.glsl"
+
 layout(location = 0) in vec4 _vertColor;
 layout(location = 1) in vec2 _uv;
 

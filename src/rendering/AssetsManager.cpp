@@ -67,7 +67,7 @@ ShaderProgram* AssetsManager::LoadProgram(const char* vs, const char* vsName, co
 
     auto materialSetBindings = program->GetDescriptorSetBindings(PerMaterial);
     if (materialSetBindings)
-        DescriptorSetManager::RegisterSetLayout(PerMaterial, 0, *materialSetBindings, true, 2);
+        DescriptorSetManager::RegisterSetLayout(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(program), *materialSetBindings, true, 2);
 
     return program;
 }

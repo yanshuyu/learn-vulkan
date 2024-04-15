@@ -77,7 +77,7 @@ static bool _vertex_color_parser(ShaderProgram* program)
     program->AddAttribute(Color, 1);
     program->AddAttribute(UV0, 2);
 
-    program->AddDescriptorSetBinding(PerMaterial, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, VK_SHADER_STAGE_FRAGMENT_BIT);
+    program->AddDescriptorSetBinding(PerMaterial, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     
     return true;
 }

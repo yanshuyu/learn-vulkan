@@ -55,6 +55,7 @@ public:
     uint32_t GetMemorySize() const override { return m_MemSz; }
     const ImageDesc& GetDesc() const { return m_Desc; }
     VkImageView GetView() const { return m_View; }
+    VkImageLayout GetLayout() const {return m_Layout; }
 };
 
 
