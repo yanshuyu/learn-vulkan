@@ -6,6 +6,7 @@
 #include"rendering\AssetsManager.h"
 #include"rendering\DescriptorSetManager.h"
 
+
 Application::Application(const AppDesc& appDesc)
 : m_appDesc(appDesc)
 {

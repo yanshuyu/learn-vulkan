@@ -2,6 +2,7 @@
 #include"core\SwapChain.h"
 #include"core\Device.h"
 #include"core\VulkanInstance.h"
+#include"input\InputManager.h"
 
 
 AppController::~AppController()
@@ -21,6 +22,7 @@ void AppController::MainLoop()
     while (!m_Window->ShouldClose())
     {
         m_App->Step();
+        InputManager::Reset();
         m_Window->ProcessEvent();
     }
 }

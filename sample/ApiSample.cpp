@@ -13,7 +13,7 @@
 #include<rendering\Texture2D.h>
 #include<rendering\RenderData.h>
 #include<glm\gtc\matrix_transform.hpp>
-
+#include"input\InputManager.h"
 
 ApiSample::ApiSample(const AppDesc& appDesc)
 : Application(appDesc)
@@ -111,7 +111,7 @@ bool ApiSample::Setup()
     _quadPipeline->VSSetViewport({0.f, h, w, -h});
     _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
     _quadPipeline->FBDisableBlend(0);
-    _quadPipeline->RSSetCullFace(VK_CULL_MODE_NONE);
+    _quadPipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
     _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
     assert(_quadPipeline->Apply());
 
@@ -140,7 +140,8 @@ bool ApiSample::Setup()
     _perCameraData->invViewProjectionMatrix = glm::inverse(_perCameraData->viewProjectionMatrix);
     _perCameraData->UpdateDataBuffer();
 
-    _perObjectData->modelMatrix = glm::mat4(1);
+    float texAspectRatio = _vkLogoTex->GetWidth() / (float)_vkLogoTex->GetHeight();
+    _perObjectData->modelMatrix = glm::scale(glm::mat4(1), glm::vec3(texAspectRatio, 1, 1));
     _perObjectData->invModelMatrix = glm::inverse(_perObjectData->modelMatrix);
     _perObjectData->UpdateDataBuffer();
 
@@ -210,6 +211,8 @@ void ApiSample::Update()
             _gameTimer.GetAveFps(),
             _gameTimer.GetDeltaTime());
     m_window->SetTitle(_titleStr);
+
+
 }
 
 

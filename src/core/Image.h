@@ -56,6 +56,9 @@ public:
     const ImageDesc& GetDesc() const { return m_Desc; }
     VkImageView GetView() const { return m_View; }
     VkImageLayout GetLayout() const {return m_Layout; }
+    VkExtent3D GetExtent() const { return m_Desc.extents; }
+    VkFormat GetFormat() const { return m_Desc.format; }
+    size_t GetMipLevelsCount() const { return m_Desc.mipLeves; }
 };
 
 

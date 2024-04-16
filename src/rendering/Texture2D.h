@@ -22,8 +22,8 @@ public:
     bool IsValid() const override { return Image::IsValid() && VKHANDLE_IS_NOT_NULL(_sampler); }
 
     const TextureImportSetting& GetImportSetting() const { return _importSetting; }
-    VkFormat GetFormat() const { return m_Desc.format; }
-    size_t GetMipMapLevelCount() const { return m_Desc.mipLeves; }
+    size_t GetWidth() const { return m_Desc.extents.width; }
+    size_t GetHeight() const { return m_Desc.extents.height; }
     bool IsReadWriteEnable() const { return m_Desc.linearTiling; }
     const char* GetFilePath() const { return _srcFile.c_str(); }
     VkSampler GetSampler() const { return _sampler; } 

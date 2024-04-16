@@ -1,6 +1,7 @@
 #include<stdexcept>
 #include"rendering\Window.h"
 #include"GLFW\glfw3.h"
+#include"input\InputManager.h"
 
 
 
@@ -15,6 +16,26 @@ static void ResizeCallback(GLFWwindow* window, int width, int height)
    pWindow->Resize(width, height);
 }
 
+static void KeyBoardCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{ 
+    InputManager::EnjectKey(key, action);
+}
+
+
+static void CursorPosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    InputManager::EnJectCursorPos(xpos, ypos);
+}
+
+static void MouseBtnCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    InputManager::EnjectMouse(button, action);
+}
+
+static void MouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    InputManager::EnjectMouseScroll(yoffset);
+}
 
 Window::Window(const WindowDesc& wndDesc)
 {
@@ -53,6 +74,12 @@ Window::Window(const WindowDesc& wndDesc)
     glfwSetWindowUserPointer(m_GlfwWindow, this);
 
     glfwSetWindowSizeCallback(m_GlfwWindow, ResizeCallback);
+
+    InputManager::Reset();
+    glfwSetKeyCallback(m_GlfwWindow, KeyBoardCallback);
+    glfwSetCursorPosCallback(m_GlfwWindow, CursorPosCallback);
+    glfwSetMouseButtonCallback(m_GlfwWindow, MouseBtnCallback);
+    glfwSetScrollCallback(m_GlfwWindow, MouseScrollCallback);
 
     int w, h;
     glfwGetFramebufferSize(m_GlfwWindow, &w, &h);
