@@ -22,6 +22,7 @@ bool Texture2D::LoadFromFile(const char* srcFile, bool forceLoad)
     importSetting.readWriteEnable = false;
     importSetting.genMipMap = true;
     importSetting.mipLevelFilterMode = VK_FILTER_LINEAR;
+    importSetting.srgbImage = true;
     return LoadFromFile(srcFile, importSetting, forceLoad);
 }
 

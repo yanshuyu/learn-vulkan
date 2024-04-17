@@ -2,20 +2,23 @@
 #include<input\InputManager.h>
 #include<glm\gtc\matrix_transform.hpp>
 
+#define HAFL_PI 1.570796f
+
 OrbitCamera::OrbitCamera(/* args */)
 {   
-    _update_cam_pos();
+    Reset();
 }
 
 
 void OrbitCamera::Reset()
 {
     _xyAngle = 0.f;
-    _xzAngle = 4.712385f;
+    _xzAngle = HAFL_PI;
     _center = glm::vec3(0);
     _radius = 5.f;
     _rotateSpeed = _zoomSpeed = _panSpeed = 10.f;
     _right = glm::vec3(1, 0, 0);
+    _lastMousePosX = _lastMousePosY = 0;
     _update_cam_pos();
 }
 

@@ -7,17 +7,17 @@
 class OrbitCamera
 {
 private:
-    float _xyAngle{0.f}; 
-    float _xzAngle{4.712385f};
+    float _xyAngle; 
+    float _xzAngle;
 
-    glm::vec3 _center{0};
-    glm::vec3 _right{1.f, 0.f, 0.f};
-    float _radius{5};
+    glm::vec3 _center;
+    glm::vec3 _right;
+    float _radius;
 
-    float _rotateSpeed{10.f};
-    float _zoomSpeed{10.f};
-    float _panSpeed{10.f};
-    float _dumping{0.f};
+    float _rotateSpeed;
+    float _zoomSpeed;
+    float _panSpeed;
+    float _dumping;
 
     glm::mat4 _viewMatrix{1.f};
 
