@@ -24,7 +24,7 @@ public:
 
     static bool GetMouseDown(int mouseBtn) { return s_MouseActions[mouseBtn] == GLFW_PRESS; }
     static bool GetMouseUp(int mouseBtn) { return s_MouseActions[mouseBtn] == GLFW_RELEASE; }
-    static bool GetMousePress(int mouseBtn) { return s_MouseActions[mouseBtn] == GLFW_REPEAT; }
+    //static bool GetMousePress(int mouseBtn) { return s_MouseActions[mouseBtn] == GLFW_REPEAT; }
     static void EnjectMouse(int mouseBtn, int action) { s_MouseActions[mouseBtn] = action; }
     
     static void EnJectCursorPos(double x, double y) { s_CursorPosX = x; s_CursorPosY = y; }

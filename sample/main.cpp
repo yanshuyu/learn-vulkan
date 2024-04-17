@@ -34,9 +34,9 @@ int main(int, char**)
     appDesc.swapChainColorFormat = VK_FORMAT_B8G8R8A8_UNORM;
     appDesc.swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     appDesc.swapChainTrippleBufferEnabled = true;
-    appDesc.backBufferClearColor[0] = 1;
-    appDesc.backBufferClearColor[1] = 1;
-    appDesc.backBufferClearColor[2] = 1;
+    appDesc.backBufferClearColor[0] = 0;
+    appDesc.backBufferClearColor[1] = 0;
+    appDesc.backBufferClearColor[2] = 0;
     appDesc.backBufferClearColor[3] = 1;
     appDesc.enabledDeviceExtendsionNames = deviceExtNames.data();
     appDesc.enabledDeviceExtendsionCount = deviceExtNames.size();

@@ -111,7 +111,7 @@ bool ApiSample::Setup()
     _quadPipeline->VSSetViewport({0.f, h, w, -h});
     _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
     _quadPipeline->FBDisableBlend(0);
-    _quadPipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
+    _quadPipeline->RSSetCullFace(VK_CULL_MODE_NONE);
     _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
     assert(_quadPipeline->Apply());
 
@@ -129,16 +129,6 @@ bool ApiSample::Setup()
     _perFrameData.reset(new PerFrameData(m_pDevice.get()));
     _perCameraData.reset(new PerCameraData(m_pDevice.get()));
     _perObjectData.reset(new PerObjectData(m_pDevice.get()));
-
-    glm::mat4 V = glm::lookAt(glm::vec3(0,0,5), glm::vec3(0), glm::vec3(0,1,0));
-    glm::mat4 P = glm::perspectiveFov(glm::radians(30.f), (float)m_window->GetWidth(), (float)m_window->GetHeight(), 0.01f, 100.f);
-
-    _perCameraData->viewMatrix = V;
-    _perCameraData->projectionMatrix = P;
-    _perCameraData->viewProjectionMatrix = P * V;
-    _perCameraData->invViewMatrix = glm::inverse(V);
-    _perCameraData->invViewProjectionMatrix = glm::inverse(_perCameraData->viewProjectionMatrix);
-    _perCameraData->UpdateDataBuffer();
 
     float texAspectRatio = _vkLogoTex->GetWidth() / (float)_vkLogoTex->GetHeight();
     _perObjectData->modelMatrix = glm::scale(glm::mat4(1), glm::vec3(texAspectRatio, 1, 1));
@@ -199,11 +189,24 @@ void ApiSample::Step()
 
 void ApiSample::Update()
 {
+    _camera.Update(_gameTimer.GetDeltaTime());
+
     _perFrameData->detalTime = _gameTimer.GetDeltaTime();
     _perFrameData->detalTimeOver10 = _perFrameData->detalTime / 10;
     _perFrameData->totalTime = _gameTimer.GetTotalSeconds();
     _perFrameData->sinTotalTime = std::sin(_perFrameData->totalTime);
     _perFrameData->UpdateDataBuffer();
+
+
+    glm::mat4 V = _camera.GetViewMatrix();
+    glm::mat4 P = glm::perspectiveFov(glm::radians(30.f), (float)m_window->GetWidth(), (float)m_window->GetHeight(), 0.01f, 100.f);
+
+    _perCameraData->viewMatrix = V;
+    _perCameraData->projectionMatrix = P;
+    _perCameraData->viewProjectionMatrix = P * V;
+    _perCameraData->invViewMatrix = glm::inverse(V);
+    _perCameraData->invViewProjectionMatrix = glm::inverse(_perCameraData->viewProjectionMatrix);
+    _perCameraData->UpdateDataBuffer();
 
     static char _titleStr[256];
     sprintf(_titleStr, "%s - Fps: %.1f - Ave Fps: %.1f - Delta: %f", m_window->GetDesc().name,

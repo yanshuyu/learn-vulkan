@@ -2,6 +2,7 @@
 #include<app\Application.h>
 #include<core\CoreUtils.h>
 #include<rendering\GameTimer.h>
+#include<rendering\OrbitCamera.h>
 #include<memory>
 #include<vector>
 
@@ -45,6 +46,7 @@ private:
     std::unique_ptr<Texture2D> _vkLogoTex{};
 
     GameTimer _gameTimer{};
+    OrbitCamera _camera{};
 
     std::unique_ptr<PerFrameData> _perFrameData{};
     std::unique_ptr<PerCameraData> _perCameraData{};
