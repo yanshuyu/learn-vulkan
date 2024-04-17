@@ -45,7 +45,6 @@ private:
     VkDescriptorSet _quadSet{VK_NULL_HANDLE};
     std::unique_ptr<Texture2D> _vkLogoTex{};
 
-    GameTimer _gameTimer{};
     OrbitCamera _camera{};
 
     std::unique_ptr<PerFrameData> _perFrameData{};

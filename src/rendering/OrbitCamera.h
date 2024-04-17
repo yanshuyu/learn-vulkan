@@ -40,7 +40,7 @@ public:
 
     glm::mat4 GetViewMatrix() const { return _viewMatrix; }
     void Reset();
-    void Update(float dt);
+    void Update();
 
 };
 

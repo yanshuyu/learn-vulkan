@@ -180,20 +180,20 @@ void ApiSample::Release()
 
 void ApiSample::Step()
 {
-    _gameTimer.StartFrame();
+    GameTimer::StartFrame();
     Update();
     Draw();
-    _gameTimer.EndFrame();
+    GameTimer::EndFrame();
 }
 
 
 void ApiSample::Update()
 {
-    _camera.Update(_gameTimer.GetDeltaTime());
+    _camera.Update();
 
-    _perFrameData->detalTime = _gameTimer.GetDeltaTime();
+    _perFrameData->detalTime = GameTimer::GetDeltaTime();
     _perFrameData->detalTimeOver10 = _perFrameData->detalTime / 10;
-    _perFrameData->totalTime = _gameTimer.GetTotalSeconds();
+    _perFrameData->totalTime = GameTimer::GetTotalSeconds();
     _perFrameData->sinTotalTime = std::sin(_perFrameData->totalTime);
     _perFrameData->UpdateDataBuffer();
 
@@ -210,9 +210,9 @@ void ApiSample::Update()
 
     static char _titleStr[256];
     sprintf(_titleStr, "%s - Fps: %.1f - Ave Fps: %.1f - Delta: %f", m_window->GetDesc().name,
-            _gameTimer.GetFps(),
-            _gameTimer.GetAveFps(),
-            _gameTimer.GetDeltaTime());
+            GameTimer::GetFps(),
+            GameTimer::GetAveFps(),
+            GameTimer::GetDeltaTime());
     m_window->SetTitle(_titleStr);
 
 

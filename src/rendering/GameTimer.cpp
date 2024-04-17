@@ -1,5 +1,14 @@
 #include"GameTimer.h"
 
+std::chrono::high_resolution_clock GameTimer::_clock{};
+std::chrono::high_resolution_clock::time_point GameTimer::_lastFrameTime{};
+
+float GameTimer::_totalDurSec = 0;
+size_t GameTimer::_totalFrame = 0;
+
+float GameTimer::_fps = 0;
+float GameTimer::_aveFps = 0;
+float GameTimer::_deltaTime = 0;
 
 void GameTimer::Reset()
 {

@@ -1,6 +1,7 @@
 #include"OrbitCamera.h"
 #include<input\InputManager.h>
 #include<glm\gtc\matrix_transform.hpp>
+#include"GameTimer.h"
 
 #define HAFL_PI 1.570796f
 
@@ -23,8 +24,9 @@ void OrbitCamera::Reset()
 }
 
 
-void OrbitCamera::Update(float dt)
+void OrbitCamera::Update()
 {
+    float dt = GameTimer::GetDeltaTime();
     double mousePosX, mousePosY, detalX, detalY;
 
     if (InputManager::GetKeyDown(GLFW_KEY_F))
