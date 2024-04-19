@@ -96,13 +96,13 @@ bool TextureCube::LoadFromFiles(const char *negX,
     TextureImportSetting importSetting{};
     importSetting.filterMode = VK_FILTER_LINEAR;
     importSetting.mipMapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    importSetting.genMipMap = true;
+    importSetting.genMipMap = false;
     importSetting.mipLevelFilterMode = VK_FILTER_LINEAR;
     importSetting.mipLodBias = 0;
     importSetting.uAddressMode = importSetting.vAddressMode = importSetting.wAddressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
     importSetting.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
     importSetting.anisotropyFactor = 0;
-    importSetting.srgbImage = true;
+    importSetting.srgbImage = false;
     importSetting.readWriteEnable = false;
     return LoadFromFiles(negX, posX, negY, posY, negZ, posZ, importSetting, forceLoad);    
 }

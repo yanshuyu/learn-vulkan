@@ -119,7 +119,8 @@ void Image::SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer)
         vkCmdCopyBufferToImage(cmd->GetHandle(), stagingBuffer->GetHandle(), m_vkImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufImgcopyInfo);
         
         // generate sub mip map levels
-        if (m_Desc.mipLeves > 1)
+        bool genMipMaps = m_Desc.mipLeves > 1;
+        if (genMipMaps)
         {
             VkOffset3D srcMipLevelExtent = {m_Desc.extents.width, m_Desc.extents.height, m_Desc.extents.depth};
             for (size_t i = 1; i < m_Desc.mipLeves; i++)
@@ -153,7 +154,7 @@ void Image::SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer)
 
         // transffer image layout for shader sample
         VkImageSubresourceRange imgLayerRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, m_Desc.mipLeves, layer, 1};
-        cmd->TransitionLayout(m_vkImage, imgLayerRange, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        cmd->TransitionLayout(m_vkImage, imgLayerRange, genMipMaps ? VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         cmd->End();
         cmd->ExecuteSync();
 
