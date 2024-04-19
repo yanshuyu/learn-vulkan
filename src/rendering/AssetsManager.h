@@ -17,9 +17,8 @@ private:
     static std::unordered_map<std::string, std::unique_ptr<Texture2D>> s_tex2Ds;    
 
     static Device* s_pDevice;
-    const static std::string s_shaderDir;
 private:
-    static VkShaderModule _load_shader_moudle(const char* srcPath);
+    static VkShaderModule _load_shader_moudle(const char* srcFile);
 
 public:
     AssetsManager() = delete;

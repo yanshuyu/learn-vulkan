@@ -9,12 +9,12 @@ class TextureCube : public Image
 public:
     enum Face 
     {
-        negX,
-        posX,
-        negY,
-        posY,
         negZ,
         posZ,
+        posY,
+        negY,
+        posX,
+        negX,
     };
 
 private:

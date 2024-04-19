@@ -14,6 +14,7 @@ class GraphicPipeline;
 class CommandBuffer;
 class RenderPass;
 class Texture2D;
+class TextureCube;
 struct PerFrameData;
 struct PerCameraData;
 struct PerObjectData;
@@ -44,12 +45,20 @@ private:
     std::unique_ptr<GraphicPipeline> _quadPipeline{};
     VkDescriptorSet _quadSet{VK_NULL_HANDLE};
     std::unique_ptr<Texture2D> _vkLogoTex{};
+    std::unique_ptr<PerObjectData> _quadInstanceData{};
 
-    OrbitCamera _camera{};
+    // skybox
+    std::unique_ptr<Mesh> _cube{};
+    ShaderProgram* _skyboxProgram{nullptr};
+    std::unique_ptr<GraphicPipeline> _skyboxPipeline{};
+    VkDescriptorSet _skyboxSet{VK_NULL_HANDLE};
+    std::unique_ptr<TextureCube> _skyboxTex{};
+    std::unique_ptr<PerObjectData> _skyboxInstanceData{};
 
     std::unique_ptr<PerFrameData> _perFrameData{};
     std::unique_ptr<PerCameraData> _perCameraData{};
-    std::unique_ptr<PerObjectData> _perObjectData{};
+
+    OrbitCamera _camera{};
 
 public:
     ApiSample(const AppDesc& appDesc);
@@ -60,6 +69,11 @@ private:
 
     bool CreateSwapChainFrameBuffers();
     void DestroySwapChainFrameBuffers();
+    
+    void _set_up_quad();
+    void _clean_up_quad();
+    void _set_up_sky_box();
+    void _clean_up_sky_box();
 
     void Update();
 

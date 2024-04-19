@@ -11,7 +11,6 @@
 
 std::unordered_map<std::string, std::unique_ptr<ShaderProgram>> AssetsManager::s_programs{};
 std::unordered_map<std::string, VkShaderModule> AssetsManager::s_shaderModules{};
-const std::string AssetsManager::s_shaderDir(std::string(ASSETS_DIR) + "/shaders/");
 Device* AssetsManager::s_pDevice{nullptr};
 
 
@@ -58,8 +57,8 @@ ShaderProgram* AssetsManager::LoadProgram(const char* vs, const char* vsName, co
     program->SetName(k_program.c_str());
     ShaderStageInfo vsi{vsName, VK_NULL_HANDLE, VK_SHADER_STAGE_VERTEX_BIT};
     ShaderStageInfo fsi{fsName, VK_NULL_HANDLE, VK_SHADER_STAGE_FRAGMENT_BIT};
-    vsi.shaderMoudle = _load_shader_moudle((s_shaderDir + vs).c_str());
-    fsi.shaderMoudle = _load_shader_moudle((s_shaderDir + fs).c_str());
+    vsi.shaderMoudle = _load_shader_moudle(vs);
+    fsi.shaderMoudle = _load_shader_moudle(fs);
     program->AddShader(vsi);
     program->AddShader(fsi);
     ShaderReflection::Parse(program);
@@ -84,12 +83,14 @@ void AssetsManager::UnloadProgram(ShaderProgram* program)
 }
 
 
- VkShaderModule AssetsManager::_load_shader_moudle(const char *srcPath)
+ VkShaderModule AssetsManager::_load_shader_moudle(const char * srcFile)
  {
-     auto itr = s_shaderModules.find(srcPath);
+     auto itr = s_shaderModules.find(srcFile);
      if (itr == s_shaderModules.end())
      {
-         std::ifstream fs(srcPath, std::ios_base::ate | std::ios_base::binary);
+        std::string fullPath(ASSETS_DIR);
+        fullPath += srcFile;
+         std::ifstream fs(fullPath.c_str(), std::ios_base::ate | std::ios_base::binary);
          if (!fs.is_open())
              return VK_NULL_HANDLE;
 
@@ -104,7 +105,7 @@ void AssetsManager::UnloadProgram(ShaderProgram* program)
          shaderMouCreateInfo.pCode = (uint32_t *)spvSrc.data();
          shaderMouCreateInfo.codeSize = srcSz;
          assert(VKCALL_SUCCESS(vkCreateShaderModule(s_pDevice->GetHandle(), &shaderMouCreateInfo, nullptr, &shaderMou)));
-         itr = s_shaderModules.insert(std::make_pair(srcPath, shaderMou)).first;
+         itr = s_shaderModules.insert(std::make_pair(srcFile, shaderMou)).first;
      }
 
      return itr->second;

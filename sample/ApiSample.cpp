@@ -11,6 +11,7 @@
 #include<rendering\AssetsManager.h>
 #include<rendering\DescriptorSetManager.h>
 #include<rendering\Texture2D.h>
+#include<rendering\TextureCube.h>
 #include<rendering\RenderData.h>
 #include<glm\gtc\matrix_transform.hpp>
 #include"input\InputManager.h"
@@ -64,76 +65,11 @@ bool ApiSample::Setup()
         return false; 
     }
 
-
-
-    // triangle mesh
-    glm::vec3 verts[] = {
-        {-0.5, -0.5, 0},
-        {-0.5, 0.5, 0},
-        {0.5, 0.5, 0},
-        {0.5, -0.5, 0},
-    };
-
-    glm::vec4 colors[] = {
-        {0.5, 1, 1, 1},
-        {0.5, 1, 1, 1},
-        {1, 1, 0.5, 1},
-        {1, 1, 0.5, 1},
-    };
-
-    glm::vec2 uvs[] = {
-        {0, 1},
-        {0, 0},
-        {1, 0},
-        {1, 1},
-    };
-
-    index_t triIndices[] = {0, 1, 2, 2, 3, 0};
-
-    _quad.reset(new Mesh(m_pDevice.get()));
-    _quad->SetVertices(verts, 4);
-    _quad->SetColors(colors, 4);
-    _quad->SetUV1s(uvs, 4);
-    _quad->SetIndices(triIndices, 6);
-    _quad->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    assert(_quad->Apply());
-    
-    // vertex color shader program
-    _vertColorProgram = AssetsManager::LoadProgram("vertex_color.vert.spv", "vertex_color.frag.spv");
-
-    _vkLogoTex.reset(new Texture2D(m_pDevice.get()));
-    _vkLogoTex->LoadFromFile("textures/VulkanCar_678x452.jpg");
-    
-    // triangle pipeline
-    float w = m_window->GetDesc().windowWidth;
-    float h = m_window->GetDesc().windowHeight;
-    _quadPipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _quad.get(), _renderPass.get()));
-    _quadPipeline->VSSetViewport({0.f, h, w, -h});
-    _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
-    _quadPipeline->FBDisableBlend(0);
-    _quadPipeline->RSSetCullFace(VK_CULL_MODE_NONE);
-    _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
-    assert(_quadPipeline->Apply());
-
-    _quadSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_vertColorProgram));
-    VkDescriptorImageInfo texInfo{_vkLogoTex->GetSampler(), _vkLogoTex->GetView(), _vkLogoTex->GetLayout()};
-    VkWriteDescriptorSet texWriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-    texWriteSet.dstSet = _quadSet;
-    texWriteSet.dstBinding = 0;
-    texWriteSet.dstArrayElement = 0;
-    texWriteSet.descriptorCount = 1;
-    texWriteSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    texWriteSet.pImageInfo = &texInfo;
-    vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &texWriteSet, 0, nullptr);
-
     _perFrameData.reset(new PerFrameData(m_pDevice.get()));
     _perCameraData.reset(new PerCameraData(m_pDevice.get()));
-    _perObjectData.reset(new PerObjectData(m_pDevice.get()));
 
-    float texAspectRatio = _vkLogoTex->GetWidth() / (float)_vkLogoTex->GetHeight();
-    _perObjectData->modelMatrix = glm::scale(glm::mat4(1), glm::vec3(texAspectRatio, 1, 1));
-    _perObjectData->invModelMatrix = glm::inverse(_perObjectData->modelMatrix);
-    _perObjectData->UpdateDataBuffer();
+    _set_up_quad();
+    _set_up_sky_box();
 
     return true;
 }
@@ -142,10 +78,9 @@ bool ApiSample::Setup()
 
 void ApiSample::Release()
 {
-    _vkLogoTex->Release();
-    _quadPipeline->Release();
-    _quad->Release();
-    _perObjectData->Release();
+    _clean_up_quad();
+    _clean_up_sky_box();
+
     _perCameraData->Release();
     _perFrameData->Release();
    
@@ -199,7 +134,7 @@ void ApiSample::Update()
 
 
     glm::mat4 V = _camera.GetViewMatrix();
-    glm::mat4 P = glm::perspectiveFov(glm::radians(30.f), (float)m_window->GetWidth(), (float)m_window->GetHeight(), 0.01f, 100.f);
+    glm::mat4 P = glm::perspectiveFov(glm::radians(30.f), (float)m_window->GetWidth(), (float)m_window->GetHeight(), 0.01f, 500.f);
 
     _perCameraData->viewMatrix = V;
     _perCameraData->projectionMatrix = P;
@@ -297,12 +232,24 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerFrameData::sPipelineLayout, PerFrame, 1, &_perFrameData->dataSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerCameraData::sPipelineLayout, PerCamera, 1, &_perCameraData->dataSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerMaterial, 1, &_quadSet, 0, nullptr);
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_quadInstanceData->dataSet, 0, nullptr);
     vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _quadPipeline->GetHandle());
     vkCmdBindVertexBuffers(m_CmdBuffer, 0, _quad->GetAttributeCount(), _quad->GetAttributeBindingHandls(), attrBindingZeroOffsets);
     vkCmdBindIndexBuffer(m_CmdBuffer, _quad->GetIndexBuffer()->GetHandle(), 0, _quad->GetIndexType());
-    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_perObjectData->dataSet, 0, nullptr);
     vkCmdDrawIndexed(m_CmdBuffer, _quad->GetIndicesCount(), 1, 0, 0, 0);
+    
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_skyboxInstanceData->dataSet, 0, nullptr);
+    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _cube->GetAttributeCount(), _cube->GetAttributeBindingHandls(), attrBindingZeroOffsets);
+    vkCmdBindIndexBuffer(m_CmdBuffer, _cube->GetIndexBuffer()->GetHandle(), 0, _cube->GetIndexType());
+    vkCmdDrawIndexed(m_CmdBuffer, _cube->GetIndicesCount(), 1, 0, 0, 0);
 
+    
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxProgram->GetPipelineLayout(), PerMaterial, 1, &_skyboxSet, 0, nullptr);
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxProgram->GetPipelineLayout(), PerObject, 1, &_skyboxInstanceData->dataSet, 0, nullptr);
+    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxPipeline->GetHandle());
+    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _cube->GetAttributeCount(), _cube->GetAttributeBindingHandls(), attrBindingZeroOffsets);
+    vkCmdBindIndexBuffer(m_CmdBuffer, _cube->GetIndexBuffer()->GetHandle(), 0, _cube->GetIndexType());
+    vkCmdDrawIndexed(m_CmdBuffer, _cube->GetIndicesCount(), 1, 0, 0, 0);
     // ***********************************************************************************
 
     vkCmdEndRenderPass(m_CmdBuffer);
@@ -416,5 +363,265 @@ void ApiSample::DestroySwapChainFrameBuffers()
     
 }
 
+
+
+void ApiSample::_set_up_quad()
+{
+// quad mesh
+    glm::vec3 verts[] = {
+        {-0.5, -0.5, 0},
+        {-0.5, 0.5, 0},
+        {0.5, 0.5, 0},
+        {0.5, -0.5, 0},
+    };
+
+    glm::vec4 colors[] = {
+        {0.5, 1, 1, 1},
+        {0.5, 1, 1, 1},
+        {1, 1, 0.5, 1},
+        {1, 1, 0.5, 1},
+    };
+
+    glm::vec2 uvs[] = {
+        {0, 1},
+        {0, 0},
+        {1, 0},
+        {1, 1},
+    };
+
+    index_t triIndices[] = {0, 1, 2, 2, 3, 0};
+
+    _quad.reset(new Mesh(m_pDevice.get()));
+    _quad->SetVertices(verts, 4);
+    _quad->SetColors(colors, 4);
+    _quad->SetUV1s(uvs, 4);
+    _quad->SetIndices(triIndices, 6);
+    _quad->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    assert(_quad->Apply());
+    
+    // vertex color shader program
+    _vertColorProgram = AssetsManager::LoadProgram("shaders/vertex_color.vert.spv", "shaders/vertex_color.frag.spv");
+
+    _vkLogoTex.reset(new Texture2D(m_pDevice.get()));
+    _vkLogoTex->LoadFromFile("textures/VulkanCar_678x452.jpg");
+    
+    // triangle pipeline
+    float w = m_window->GetDesc().windowWidth;
+    float h = m_window->GetDesc().windowHeight;
+    _quadPipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _quad.get(), _renderPass.get()));
+    _quadPipeline->VSSetViewport({0.f, h, w, -h});
+    _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
+    _quadPipeline->FBDisableBlend(0);
+    _quadPipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
+    _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
+    assert(_quadPipeline->Apply());
+
+    _quadSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_vertColorProgram));
+    VkDescriptorImageInfo texInfo{_vkLogoTex->GetSampler(), _vkLogoTex->GetView(), _vkLogoTex->GetLayout()};
+    VkWriteDescriptorSet texWriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    texWriteSet.dstSet = _quadSet;
+    texWriteSet.dstBinding = 0;
+    texWriteSet.dstArrayElement = 0;
+    texWriteSet.descriptorCount = 1;
+    texWriteSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texWriteSet.pImageInfo = &texInfo;
+    vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &texWriteSet, 0, nullptr);
+
+    float texAspectRatio = _vkLogoTex->GetWidth() / (float)_vkLogoTex->GetHeight();
+    glm::mat4 M{1.f};
+    M = glm::scale(M, glm::vec3(texAspectRatio, 1, 1));
+    M = glm::translate(M, {-1, 0, 0});
+    _quadInstanceData.reset(new PerObjectData(m_pDevice.get()));
+    _quadInstanceData->modelMatrix = M;
+    _quadInstanceData->invModelMatrix = glm::inverse(_quadInstanceData->modelMatrix);
+    _quadInstanceData->UpdateDataBuffer();
+}
+
+void ApiSample::_clean_up_quad()
+{
+    _vkLogoTex->Release();
+    _quadPipeline->Release();
+    _quad->Release();
+    _quadInstanceData->Release();
+}
+ 
+void ApiSample::_set_up_sky_box()
+{
+    
+    _skyboxProgram = AssetsManager::LoadProgram("shaders/skybox.vert.spv", "shaders/skybox.frag.spv");
+
+    _skyboxTex.reset(new TextureCube(m_pDevice.get()));
+    assert(_skyboxTex->LoadFromFiles("textures/sunset_sky/sunset_neg_x.PNG",
+                                     "textures/sunset_sky/sunset_pos_x.PNG",
+                                     "textures/sunset_sky/sunset_neg_y.PNG",
+                                     "textures/sunset_sky/sunset_pos_y.PNG",
+                                     "textures/sunset_sky/sunset_neg_z.PNG",
+                                     "textures/sunset_sky/sunset_pos_z.PNG"));
+
+    glm::vec3 cubeVerts[] = {
+        {-0.5, -0.5, -0.5},
+        {0.5, -0.5, -0.5},
+        {0.5, 0.5, -0.5},
+        {-0.5, 0.5, -0.5}, // front
+
+        {0.5, -0.5, 0.5},
+        {0.5, -0.5, -0.5},
+        {-0.5, -0.5, -0.5},
+        {-0.5, -0.5, 0.5}, // bottom
+
+        {-0.5, -0.5, 0.5},
+        {-0.5, 0.5, 0.5},
+        {0.5, 0.5, 0.5},
+        {0.5, -0.5, 0.5}, // back
+
+        {-0.5, -0.5, -0.5},
+        {-0.5, 0.5, -0.5},
+        {-0.5, 0.5, 0.5},
+        {-0.5, -0.5, 0.5}, // left
+
+        {0.5, -0.5, 0.5},
+        {0.5, 0.5, 0.5},
+        {0.5, 0.5, -0.5},
+        {0.5, -0.5, -0.5}, // right
+
+        
+        {-0.5, 0.5, -0.5},
+        {0.5, 0.5, -0.5},
+        {0.5, 0.5, 0.5},
+        {-0.5, 0.5, 0.5}, // top
+    };
+
+    glm::vec4 cubeColors[] = {
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+        {1, 1, 1, 1},
+
+    };
+
+    glm::vec2 cubeUVs[] = {
+        {1, 1},
+        {0, 1},
+        {0, 0},
+        {1, 0},
+
+        {0, 0},
+        {0, 1},
+        {1, 1},
+        {1, 0},
+
+        {0, 1},
+        {0, 0},
+        {1, 0},
+        {1, 1},
+
+        {0, 1},
+        {0, 0},
+        {1, 0},
+        {1, 1},
+
+        {0, 1},
+        {0, 0},
+        {1, 0},
+        {1, 1},
+
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 1},
+    };
+
+    index_t cubeIndices[] = {
+        0, 1, 2,
+        2, 3, 0,
+
+        4, 5, 6,
+        6, 7, 4,
+
+        8, 9, 10,
+        10, 11, 8,
+
+        12, 13, 14,
+        14, 15, 12,
+
+        16, 17, 18,
+        18, 19, 16,
+
+        20, 21, 22,
+        22, 23, 20,
+    };
+
+    _cube.reset(new Mesh(m_pDevice.get()));
+    _cube->SetVertices(cubeVerts, 24);
+    _cube->SetUV1s(cubeUVs, 24);
+    _cube->SetIndices(cubeIndices, 36);
+    _cube->SetColors(cubeColors, 24);
+    _cube->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    assert(_cube->Apply());
+
+    float w = m_window->GetDesc().windowWidth;
+    float h = m_window->GetDesc().windowHeight;
+    _skyboxPipeline.reset(new GraphicPipeline(m_pDevice.get(), _skyboxProgram, _cube.get(), _renderPass.get()));
+    _skyboxPipeline->VSSetViewport({0.f, h, w, -h});
+    _skyboxPipeline->VSSetScissor({0.f, 0.f, w, h});
+    _skyboxPipeline->RSSetCullFace(VK_CULL_MODE_FRONT_BIT);
+    _skyboxPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
+    _skyboxPipeline->FBDisableBlend(0);
+    _skyboxPipeline->DSDisableZWrite();
+    assert(_skyboxPipeline->Apply());
+
+    _skyboxSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_skyboxProgram));
+    VkDescriptorImageInfo skyboxTexInfo{_skyboxTex->GetSampler(), _skyboxTex->GetView(), _skyboxTex->GetLayout()};
+    VkWriteDescriptorSet skyboxTexWriteInfo{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    skyboxTexWriteInfo.dstSet = _skyboxSet;
+    skyboxTexWriteInfo.dstBinding = 0;
+    skyboxTexWriteInfo.dstArrayElement = 0;
+    skyboxTexWriteInfo.descriptorCount = 1;
+    skyboxTexWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    skyboxTexWriteInfo.pImageInfo = &skyboxTexInfo;
+    vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &skyboxTexWriteInfo, 0, nullptr);
+
+    glm::mat4 M{1.f};
+    M = glm::scale(M, {1, 1, 1});
+    //M = glm::translate(M, {1, 0, 0});
+    _skyboxInstanceData.reset(new PerObjectData(m_pDevice.get()));
+    _skyboxInstanceData->modelMatrix = M;
+    _skyboxInstanceData->invModelMatrix = glm::inverse(M);
+    _skyboxInstanceData->UpdateDataBuffer();
+
+}
+
+void ApiSample::_clean_up_sky_box()
+{
+    _skyboxPipeline->Release();
+    _skyboxInstanceData->Release();
+    _skyboxTex->Release();
+    _cube->Release();
+}
 
 

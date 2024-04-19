@@ -125,7 +125,7 @@ bool TextureCube::LoadFromData(const uint8_t *negX,
         return false;   
     
     // create vulkan image & view
-    if (Create(desc))
+    if (!Create(desc))
         return false;
     
     SetPixels(negX, dataSz, Face::negX);

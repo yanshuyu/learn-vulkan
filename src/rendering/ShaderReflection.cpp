@@ -4,7 +4,7 @@
 
 #define DEC_FN_PARSER(FnName) bool FnName(ShaderProgram*);
 DEC_FN_PARSER(_vertex_color_parser)
-
+DEC_FN_PARSER(_sky_box_parser)
 
 std::unordered_map<std::string, std::function<bool(ShaderProgram*)>> ShaderReflection::s_ShaderParser{};
 
@@ -23,7 +23,8 @@ void ShaderReflection::RegisterParser(const char* hash, Fn_Parser parser)
 
 void ShaderReflection::Initailze()
 {
-    RegisterParser("vertex_color.vert.spv:vertex_color.frag.spv", _vertex_color_parser);
+    RegisterParser("shaders/vertex_color.vert.spv:shaders/vertex_color.frag.spv", _vertex_color_parser);
+    RegisterParser("shaders/skybox.vert.spv:shaders/skybox.frag.spv", _sky_box_parser);
 }
 
 
@@ -76,9 +77,15 @@ static bool _vertex_color_parser(ShaderProgram* program)
     program->AddAttribute(Position, 0);
     program->AddAttribute(Color, 1);
     program->AddAttribute(UV0, 2);
-
     program->AddDescriptorSetBinding(PerMaterial, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-    
+    return true;
+}
+
+
+static bool _sky_box_parser(ShaderProgram* program)
+{
+    program->AddAttribute(Position, 0);
+    program->AddDescriptorSetBinding(PerMaterial, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
     return true;
 }
 

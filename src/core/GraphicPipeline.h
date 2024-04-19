@@ -55,6 +55,7 @@ public:
     GraphicPipeline(Device* pDevice, ShaderProgram* program, Mesh* mesh, RenderPass* renderPass, uint32_t subPas = 0);
     ~GraphicPipeline();
 
+    NONE_COPYABLE_NONE_MOVEABLE(GraphicPipeline)
 
     //vertex input ----> driven from mesh and shader program 
     /*
