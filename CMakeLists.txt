@@ -11,7 +11,7 @@ message("LEARN_VK_ROOT_DIR -------->>>>>>>>>>> ${PROJECT_SOURCE_DIR}")
 
 add_definitions(-DASSETS_DIR=\"${PROJECT_SOURCE_DIR}/assets/\")
 
-include_directories(${PROJECT_SOURCE_DIR})
+#include_directories(${PROJECT_SOURCE_DIR})
 
 add_subdirectory("src")
 add_subdirectory("sample")
