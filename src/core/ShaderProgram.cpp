@@ -1,6 +1,7 @@
 #include"ShaderProgram.h"
 #include"core\Device.h"
 #include<fstream>
+#include<spirv-reflect/spirv_reflect.h>
 
 
 ShaderProgram::ShaderProgram(Device* pDevice)
@@ -16,16 +17,12 @@ ShaderProgram::~ShaderProgram()
 }
 
 
-bool ShaderProgram::AddShader(const ShaderStageInfo& shaderInfo)
+bool ShaderProgram::AddShader(const ShaderStageInfo* shaderInfo)
 {
     if (IsValid())
         return false;
     
-    auto pos = std::find_if(_shaders.begin(), _shaders.end(), [&](const ShaderStageInfo& _shaderInfo){
-        return _shaderInfo.stage == shaderInfo.stage;
-    });
-    
-    if (pos != _shaders.end())
+    if (HasShaderStage(shaderInfo->stage))
         return false;
 
     _shaders.push_back(shaderInfo);    
@@ -36,25 +33,24 @@ bool ShaderProgram::AddShader(const ShaderStageInfo& shaderInfo)
 
 bool ShaderProgram::HasShaderStage(VkShaderStageFlagBits stage) const
 {
-    auto pos = std::find_if(_shaders.begin(), _shaders.end(), [=](const ShaderStageInfo& shaderInfo){
-        return shaderInfo.stage == stage;
+    auto pos = std::find_if(_shaders.begin(), _shaders.end(), [=](const ShaderStageInfo* shaderInfo){
+        return shaderInfo->stage == stage;
     });
 
     return pos != _shaders.end();
 }
 
 
-bool ShaderProgram::GetShaderStageInfo(VkShaderStageFlagBits stage, ShaderStageInfo* pResult) const
+const ShaderStageInfo* ShaderProgram::GetShaderStageInfo(VkShaderStageFlagBits stage) const
 {
-    auto pos = std::find_if(_shaders.begin(), _shaders.end(), [=](const ShaderStageInfo& shaderInfo){
-        return shaderInfo.stage == stage;
+    auto pos = std::find_if(_shaders.begin(), _shaders.end(), [=](const ShaderStageInfo* shaderInfo){
+        return shaderInfo->stage == stage;
     });
 
     if (pos == _shaders.end())
-        return false;
+        return nullptr;
     
-    *pResult = *pos;
-    return true;
+    return *pos;
 }
 
 
@@ -125,6 +121,14 @@ const std::vector<VkDescriptorSetLayoutBinding>* ShaderProgram::GetDescriptorSet
 
 bool ShaderProgram::Apply()
 {
+    SpvReflectShaderModule refModule{};
+    spvReflectCreateShaderModule(_shaders[0]->spvCodes.size(), _shaders[0]->spvCodes.data(), &refModule);
+    uint32_t attrCnt = 0;
+    spvReflectEnumerateInterfaceVariables(&refModule, &attrCnt, nullptr);
+    std::vector<SpvReflectInterfaceVariable*> inputAttrs(attrCnt);
+    spvReflectEnumerateInterfaceVariables(&refModule, &attrCnt, inputAttrs.data());
+    spvReflectDestroyShaderModule(&refModule);
+    
     // create decriptor set layout
     std::vector<VkDescriptorSetLayout> setLayouts(_setLayoutBindings.size(), VK_NULL_HANDLE);
     size_t idx = 0;

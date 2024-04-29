@@ -7,8 +7,10 @@
 class Device;
 
 struct ShaderStageInfo
-{
+{   
     std::string pEntryName;
+    std::string srcPath;
+    std::vector<char> spvCodes;
     VkShaderModule shaderMoudle;
     VkShaderStageFlagBits stage;
 };
@@ -26,7 +28,7 @@ class ShaderProgram
 private:
     std::string _name{};
     
-    std::vector<ShaderStageInfo> _shaders{};
+    std::vector<const ShaderStageInfo*> _shaders{};
     std::vector<VertexAttributeInfo> _attrInfos{};
     std::map<size_t, std::vector<VkDescriptorSetLayoutBinding>> _setLayoutBindings{};
     
@@ -45,12 +47,11 @@ public:
     void SetName(const char* name) { _name = name; }
     const std::string& GetName() const { return _name; }
 
-    bool AddShader(const ShaderStageInfo& shaderInfo);
+    bool AddShader(const ShaderStageInfo* shaderInfo);
     bool HasShaderStage(VkShaderStageFlagBits stage) const;
     size_t GetShaderStageCount() const { return _shaders.size(); }
-    bool ShaderProgram::GetShaderStageInfo(VkShaderStageFlagBits stage, ShaderStageInfo* pResult) const;
-    const ShaderStageInfo& GetShaderStageInfo(size_t idx) const { return _shaders[idx]; }
-    const std::vector<ShaderStageInfo>& GetShaderStageInfos() const { return _shaders; }
+    const ShaderStageInfo* GetShaderStageInfo(VkShaderStageFlagBits stage) const;
+    const std::vector<const ShaderStageInfo*>& GetShaderStageInfos() const { return _shaders; }
 
     bool AddAttribute(Attribute attr, size_t location);
     size_t GetAttributeCount() const { return _attrInfos.size(); }

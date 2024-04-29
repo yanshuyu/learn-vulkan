@@ -10,7 +10,7 @@
 #define PRPGRAM_KEY(vs, fs) std::string
 
 std::unordered_map<std::string, std::unique_ptr<ShaderProgram>> AssetsManager::s_programs{};
-std::unordered_map<std::string, VkShaderModule> AssetsManager::s_shaderModules{};
+std::unordered_map<std::string, ShaderStageInfo> AssetsManager::s_shaderModules{};
 Device* AssetsManager::s_pDevice{nullptr};
 
 
@@ -33,7 +33,7 @@ void AssetsManager::DeInitailize()
 
     for (auto &&itr : s_shaderModules)
     {
-        vkDestroyShaderModule(s_pDevice->GetHandle(), itr.second, nullptr);
+        vkDestroyShaderModule(s_pDevice->GetHandle(), itr.second.shaderMoudle, nullptr);
     }
     s_shaderModules.clear();
 
@@ -55,12 +55,12 @@ ShaderProgram* AssetsManager::LoadProgram(const char* vs, const char* vsName, co
     auto result = s_programs.emplace(std::make_pair(k_program, new ShaderProgram(s_pDevice)));
     ShaderProgram* program = result.first->second.get();
     program->SetName(k_program.c_str());
-    ShaderStageInfo vsi{vsName, VK_NULL_HANDLE, VK_SHADER_STAGE_VERTEX_BIT};
-    ShaderStageInfo fsi{fsName, VK_NULL_HANDLE, VK_SHADER_STAGE_FRAGMENT_BIT};
-    vsi.shaderMoudle = _load_shader_moudle(vs);
-    fsi.shaderMoudle = _load_shader_moudle(fs);
-    program->AddShader(vsi);
-    program->AddShader(fsi);
+    auto vsShader = _load_shader_moudle(vs, vsName, VK_SHADER_STAGE_VERTEX_BIT);
+    auto fsShader = _load_shader_moudle(fs, fsName, VK_SHADER_STAGE_FRAGMENT_BIT);
+    assert(vsShader);
+    assert(fsShader);
+    program->AddShader(vsShader);
+    program->AddShader(fsShader);
     ShaderReflection::Parse(program);
     assert(program->Apply());
 
@@ -83,16 +83,16 @@ void AssetsManager::UnloadProgram(ShaderProgram* program)
 }
 
 
- VkShaderModule AssetsManager::_load_shader_moudle(const char * srcFile)
+ const ShaderStageInfo* AssetsManager::_load_shader_moudle(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage)
  {
-     auto itr = s_shaderModules.find(srcFile);
+    std::string fullPath(ASSETS_DIR);
+    fullPath += srcFile;
+     auto itr = s_shaderModules.find(fullPath);
      if (itr == s_shaderModules.end())
      {
-        std::string fullPath(ASSETS_DIR);
-        fullPath += srcFile;
          std::ifstream fs(fullPath.c_str(), std::ios_base::ate | std::ios_base::binary);
          if (!fs.is_open())
-             return VK_NULL_HANDLE;
+             return nullptr;
 
          size_t srcSz = fs.tellg();
          fs.seekg(std::ios_base::beg);
@@ -104,9 +104,16 @@ void AssetsManager::UnloadProgram(ShaderProgram* program)
          VkShaderModuleCreateInfo shaderMouCreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
          shaderMouCreateInfo.pCode = (uint32_t *)spvSrc.data();
          shaderMouCreateInfo.codeSize = srcSz;
-         assert(VKCALL_SUCCESS(vkCreateShaderModule(s_pDevice->GetHandle(), &shaderMouCreateInfo, nullptr, &shaderMou)));
-         itr = s_shaderModules.insert(std::make_pair(srcFile, shaderMou)).first;
+         if(VKCALL_FAILED(vkCreateShaderModule(s_pDevice->GetHandle(), &shaderMouCreateInfo, nullptr, &shaderMou)))
+            return nullptr;
+         
+         itr = s_shaderModules.insert(std::make_pair(fullPath, ShaderStageInfo())).first;
+         itr->second.srcPath = fullPath;
+         itr->second.pEntryName = entryName;
+         itr->second.spvCodes = std::move(spvSrc);
+         itr->second.stage = stage;
+         itr->second.shaderMoudle = shaderMou;
      }
 
-     return itr->second;
+     return &itr->second;
  }

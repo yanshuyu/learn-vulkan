@@ -4,6 +4,7 @@
 #include<memory>
 #include"core\CoreUtils.h"
 
+struct ShaderStageInfo;
 class Device;
 class ShaderProgram;
 class Texture2D;
@@ -12,13 +13,13 @@ class AssetsManager
 {
 private:
     static std::unordered_map<std::string, std::unique_ptr<ShaderProgram>> s_programs;
-    static std::unordered_map<std::string, VkShaderModule> s_shaderModules;
+    static std::unordered_map<std::string, ShaderStageInfo> s_shaderModules;
 
     static std::unordered_map<std::string, std::unique_ptr<Texture2D>> s_tex2Ds;    
 
     static Device* s_pDevice;
 private:
-    static VkShaderModule _load_shader_moudle(const char* srcFile);
+    static const ShaderStageInfo* AssetsManager::_load_shader_moudle(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage);
 
 public:
     AssetsManager() = delete;

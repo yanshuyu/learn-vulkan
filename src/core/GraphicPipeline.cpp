@@ -402,13 +402,13 @@ bool GraphicPipeline::Apply()
     
     // programmable function stages
     std::vector<VkPipelineShaderStageCreateInfo> shaderStageCreateInfos(m_AssociateProgram->GetShaderStageCount());
-    for (size_t i = 0; i < m_AssociateProgram->GetShaderStageCount(); i++)
+    auto shaderStageInfos = m_AssociateProgram->GetShaderStageInfos();
+    for (size_t i = 0; i < shaderStageInfos.size(); i++)
     {
-        const ShaderStageInfo& stageInfo = m_AssociateProgram->GetShaderStageInfo(i);
         shaderStageCreateInfos[i].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        shaderStageCreateInfos[i].stage = stageInfo.stage;
-        shaderStageCreateInfos[i].module = stageInfo.shaderMoudle;
-        shaderStageCreateInfos[i].pName = stageInfo.pEntryName.c_str();
+        shaderStageCreateInfos[i].stage = shaderStageInfos[i]->stage;
+        shaderStageCreateInfos[i].module = shaderStageInfos[i]->shaderMoudle;
+        shaderStageCreateInfos[i].pName = shaderStageInfos[i]->pEntryName.c_str();
     }
     createInfo.stageCount = m_AssociateProgram->GetShaderStageCount();
     createInfo.pStages = shaderStageCreateInfos.data();
