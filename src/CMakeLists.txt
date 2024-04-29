@@ -14,6 +14,7 @@ set(VULKAN_LIB_DIR ${3PARTY_DIR}/vulkan/Lib)
 #link_directories(${GLFW_LIB_DIR} ${VULKAN_LIB_DIR})
 
 # framework src
+#[[
 message("${FRAMEWORK_NAME} Directry ------------>>>>>>>>>>> ${PROJECT_SOURCE_DIR}")
 aux_source_directory(${3PARTY_DIR}/stb STB_CXX_FILES)
 message("****************************STB_CXX_FILES: ${STB_CXX_FILES}")
@@ -25,10 +26,12 @@ aux_source_directory(${PROJECT_SOURCE_DIR}/input INPUT_CXX_FILES)
 message("****************************INPUT_CXX_FILES: ${INPUT_CXX_FILES}")
 aux_source_directory(${PROJECT_SOURCE_DIR}/app APP_CXX_FILES)
 message("****************************APP_CXX_FILES: ${APP_CXX_FILES}")
+]]
 
-
+file(GLOB_RECURSE FRAMEWORK_SRC "*.cpp" "*.c" "*.h" "*.hpp")
+message("FRAMEWORK_SRC --> ${FRAMEWORK_SRC}")
 # framework lib
-add_library(${FRAMEWORK_NAME} STATIC ${STB_CXX_FILES} ${CORE_CXX_FILES} ${RENDERING_CXX_FILES} ${INPUT_CXX_FILES} ${APP_CXX_FILES})
+add_library(${FRAMEWORK_NAME} STATIC ${FRAMEWORK_SRC})
 target_include_directories(${FRAMEWORK_NAME} PUBLIC ${LEARN_VK_ROOT_DIR}
                                                     ${3PARTY_DIR}  
                                                     ${PROJECT_SOURCE_DIR} 
