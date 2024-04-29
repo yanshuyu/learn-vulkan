@@ -3,4 +3,3 @@ project(${FRAMEWORK_3PARTY_NAME} LANGUAGES C CXX)
 
 add_subdirectory(glfw)
 add_subdirectory(glm)
-
