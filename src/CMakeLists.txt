@@ -5,6 +5,7 @@ project(${FRAMEWORK_NAME} LANGUAGES C CXX)
 set(3PARTY_DIR ${LEARN_VK_ROOT_DIR}/3party)
 set(GLFW_INC_DIR ${3PARTY_DIR}/glfw/include)
 #set(GLFW_LIB_DIR ${3PARTY_DIR}/glfw/lib-vc2022)
+set(GLM_INC_DIR ${3PARTY_DIR}/glm)
 set(VULKAN_INC_DIR ${3PARTY_DIR}/vulkan/Include)
 set(VULKAN_LIB_DIR ${3PARTY_DIR}/vulkan/Lib)
 
@@ -28,7 +29,13 @@ message("****************************APP_CXX_FILES: ${APP_CXX_FILES}")
 
 # framework lib
 add_library(${FRAMEWORK_NAME} STATIC ${STB_CXX_FILES} ${CORE_CXX_FILES} ${RENDERING_CXX_FILES} ${INPUT_CXX_FILES} ${APP_CXX_FILES})
-target_include_directories(${FRAMEWORK_NAME} PUBLIC ${LEARN_VK_ROOT_DIR} ${3PARTY_DIR}  ${PROJECT_SOURCE_DIR} ${GLFW_INC_DIR} ${VULKAN_INC_DIR})
+target_include_directories(${FRAMEWORK_NAME} PUBLIC ${LEARN_VK_ROOT_DIR}
+                                                    ${3PARTY_DIR}  
+                                                    ${PROJECT_SOURCE_DIR} 
+                                                    ${GLM_INC_DIR}
+                                                    ${GLFW_INC_DIR} 
+                                                    ${VULKAN_INC_DIR})
 target_link_directories(${FRAMEWORK_NAME} PUBLIC  ${VULKAN_LIB_DIR})
-target_link_libraries(${FRAMEWORK_NAME} PUBLIC glfw vulkan-1.lib)
+
+target_link_libraries(${FRAMEWORK_NAME} PUBLIC glm glfw vulkan-1.lib)
 
