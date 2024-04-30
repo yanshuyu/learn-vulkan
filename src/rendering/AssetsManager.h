@@ -19,7 +19,9 @@ private:
 
     static Device* s_pDevice;
 private:
-    static const ShaderStageInfo* AssetsManager::_load_shader_moudle(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage);
+    static const ShaderStageInfo* _load_shader_moudle(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage);
+    static bool _parse_shader_reflection(ShaderProgram* shader);
+    static VertexAttribute _attr_name_to_type(const char* name);
 
 public:
     AssetsManager() = delete;

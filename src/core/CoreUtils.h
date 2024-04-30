@@ -59,7 +59,7 @@ enum DeviceLimits
     LimitsEnd,
 };
 
-enum Attribute
+enum VertexAttribute
 {
     Position,
     Normal,

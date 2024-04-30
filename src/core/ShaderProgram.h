@@ -4,6 +4,9 @@
 #include<map>
 #include<string>
 
+
+#define MAX_SHADER_VARIABLE_NAME 32
+
 class Device;
 
 struct ShaderStageInfo
@@ -18,9 +21,23 @@ struct ShaderStageInfo
 
 struct VertexAttributeInfo
 {
-    Attribute attrType;
+    VertexAttribute attrType;
     size_t location;
+    VkFormat format;
+    char name[MAX_SHADER_VARIABLE_NAME];
 };
+
+
+struct SetBindingInfo
+{
+    int set;
+    int binding;
+    VkDescriptorType descripterType;
+    int descriptorCount;
+    
+    char name[MAX_SHADER_VARIABLE_NAME];
+};
+
 
 
 class ShaderProgram
@@ -53,7 +70,7 @@ public:
     const ShaderStageInfo* GetShaderStageInfo(VkShaderStageFlagBits stage) const;
     const std::vector<const ShaderStageInfo*>& GetShaderStageInfos() const { return _shaders; }
 
-    bool AddAttribute(Attribute attr, size_t location);
+    bool AddAttribute(VertexAttribute attr, size_t loc, VkFormat fmt, const char* name);
     size_t GetAttributeCount() const { return _attrInfos.size(); }
     const std::vector<VertexAttributeInfo>& GetAttributes() const { return _attrInfos; }
 

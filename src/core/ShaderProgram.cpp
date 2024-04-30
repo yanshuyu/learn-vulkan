@@ -54,7 +54,7 @@ const ShaderStageInfo* ShaderProgram::GetShaderStageInfo(VkShaderStageFlagBits s
 }
 
 
-bool ShaderProgram::AddAttribute(Attribute attr, size_t location)
+bool ShaderProgram::AddAttribute(VertexAttribute attr, size_t loc, VkFormat fmt, const char* name)
 {
     auto itr = std::find_if(_attrInfos.begin(), _attrInfos.end(), [=](const VertexAttributeInfo& attrInfo)
     {
@@ -65,8 +65,11 @@ bool ShaderProgram::AddAttribute(Attribute attr, size_t location)
     {
         VertexAttributeInfo attrInfo{};
         attrInfo.attrType = attr;
-        attrInfo.location = location;
-        _attrInfos.push_back(attrInfo);
+        attrInfo.location = loc;
+        attrInfo.format = fmt;
+        strcpy_s(attrInfo.name, MAX_SHADER_VARIABLE_NAME, name);
+        _attrInfos.push_back(std::move(attrInfo));
+        return true;
     }
     
     return false;    
@@ -123,12 +126,30 @@ bool ShaderProgram::Apply()
 {
     SpvReflectShaderModule refModule{};
     spvReflectCreateShaderModule(_shaders[0]->spvCodes.size(), _shaders[0]->spvCodes.data(), &refModule);
+    auto entryInfo = spvReflectGetEntryPoint(&refModule, "main");
+
+    for (size_t i = 0; i < entryInfo->interface_variable_count; i++)
+    {
+        auto& itf = entryInfo->interface_variables[i];
+        LOGI("var name: {} location: {} blitin: {}", itf.name, itf.location, itf.decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN);
+    }
+    
+
+    for (size_t i = 0; i < entryInfo->descriptor_set_count; i++)
+    {
+        auto set = entryInfo->descriptor_sets[i];
+        int x;
+    }
+    
+    
+    
+
     uint32_t attrCnt = 0;
     spvReflectEnumerateInterfaceVariables(&refModule, &attrCnt, nullptr);
     std::vector<SpvReflectInterfaceVariable*> inputAttrs(attrCnt);
     spvReflectEnumerateInterfaceVariables(&refModule, &attrCnt, inputAttrs.data());
     spvReflectDestroyShaderModule(&refModule);
-    
+
     // create decriptor set layout
     std::vector<VkDescriptorSetLayout> setLayouts(_setLayoutBindings.size(), VK_NULL_HANDLE);
     size_t idx = 0;

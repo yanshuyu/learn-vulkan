@@ -197,7 +197,7 @@ void Release();
 
 
 
-void Mesh::_gen_buffer(Attribute attr, size_t size)
+void Mesh::_gen_buffer(VertexAttribute attr, size_t size)
 {
     bool isIndex = attr == MaxAttribute;
     VkBufferUsageFlags usage = isIndex ? VK_BUFFER_USAGE_INDEX_BUFFER_BIT : VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -206,7 +206,7 @@ void Mesh::_gen_buffer(Attribute attr, size_t size)
     _attrBuffers[attr] = _pDevice->CreateBuffer(size, usage, memProp);
 }
 
-void Mesh::_gen_staging_data(Attribute attr, uint8_t *data, size_t sz)
+void Mesh::_gen_staging_data(VertexAttribute attr, uint8_t *data, size_t sz)
 {
     assert(_stagingBuffers[attr] == nullptr);
     _stagingBuffers[attr] = _pDevice->CreateBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -215,7 +215,7 @@ void Mesh::_gen_staging_data(Attribute attr, uint8_t *data, size_t sz)
     _stagingBuffers[attr]->UnMap();
 }
 
-void Mesh::_update_buffer(CommandBuffer *cmd, Attribute attr, uint8_t *data, size_t size)
+void Mesh::_update_buffer(CommandBuffer *cmd, VertexAttribute attr, uint8_t *data, size_t size)
 {
     bool isIndex = attr == MaxAttribute;
     Buffer *buf = _attrBuffers[attr];
@@ -239,7 +239,7 @@ void Mesh::_update_buffer(CommandBuffer *cmd, Attribute attr, uint8_t *data, siz
     }
 }
 
-size_t Mesh::_get_attr_byte_size(Attribute attr) const
+size_t Mesh::_get_attr_byte_size(VertexAttribute attr) const
 {
     switch (attr)
     {
@@ -266,7 +266,7 @@ size_t Mesh::_get_attr_byte_size(Attribute attr) const
 }
 
 
-VkFormat Mesh::GetAttributeFormat(Attribute attr) const
+VkFormat Mesh::GetAttributeFormat(VertexAttribute attr) const
 {
     switch (attr)
     {
@@ -338,7 +338,7 @@ void Mesh::_clear_attr_binding()
 }
 
 
-void Mesh::_append_attr_binding(Attribute attr)
+void Mesh::_append_attr_binding(VertexAttribute attr)
 {
     _attrBindingHandls[_attrBindingCnt] = _attrBuffers[attr]->GetHandle();
     _attrBindings[attr] = _attrBindingCnt;

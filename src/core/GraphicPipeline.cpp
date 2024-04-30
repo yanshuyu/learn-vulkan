@@ -306,7 +306,7 @@ bool GraphicPipeline::Apply()
     viBindingDesc.reserve(m_AssociateMesh->GetAttributeCount());
     for (size_t i = 0; i < MaxAttribute; i++)
     {
-        Attribute attr = (Attribute)i;
+        VertexAttribute attr = (VertexAttribute)i;
         if (m_AssociateMesh->HasAttribute(attr))
         {
             VkVertexInputBindingDescription bindingDesc{};
