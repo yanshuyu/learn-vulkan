@@ -67,7 +67,7 @@ bool ApiSample::Setup()
 
     _perFrameData.reset(new PerFrameData(m_pDevice.get()));
     _perCameraData.reset(new PerCameraData(m_pDevice.get()));
-
+    
     _set_up_quad();
     _set_up_sky_box();
 
