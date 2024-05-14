@@ -67,7 +67,7 @@ bool ApiSample::Setup()
 
     _perFrameData.reset(new PerFrameData(m_pDevice.get()));
     _perCameraData.reset(new PerCameraData(m_pDevice.get()));
-    
+
     _set_up_quad();
     _set_up_sky_box();
 
@@ -400,7 +400,7 @@ void ApiSample::_set_up_quad()
     assert(_quad->Apply());
     
     // vertex color shader program
-    _vertColorProgram = AssetsManager::LoadProgram("shaders/vertex_color.vert.spv", "shaders/vertex_color.frag.spv");
+    _vertColorProgram = AssetsManager::LoadProgram("shaders/vertex_color.vert", "shaders/vertex_color.frag");
 
     _vkLogoTex.reset(new Texture2D(m_pDevice.get()));
     _vkLogoTex->LoadFromFile("textures/VulkanCar_678x452.jpg");
@@ -448,7 +448,7 @@ void ApiSample::_clean_up_quad()
 void ApiSample::_set_up_sky_box()
 {
     
-    _skyboxProgram = AssetsManager::LoadProgram("shaders/skybox.vert.spv", "shaders/skybox.frag.spv");
+    _skyboxProgram = AssetsManager::LoadProgram("shaders/skybox.vert", "shaders/skybox.frag");
 
     _skyboxTex.reset(new TextureCube(m_pDevice.get()));
     assert(_skyboxTex->LoadFromFiles("textures/sunset_sky/sunset_neg_x.PNG",

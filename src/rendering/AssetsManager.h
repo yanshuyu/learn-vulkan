@@ -19,7 +19,8 @@ private:
 
     static Device* s_pDevice;
 private:
-    static const ShaderStageInfo* _load_shader_moudle(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage);
+    static const ShaderStageInfo* _load_shader_moudle_spv(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage);
+    static const ShaderStageInfo* _load_shader_moudle_glsl(const char * srcFile, const char* entryName, VkShaderStageFlagBits stage);
     static bool _parse_shader_reflection(ShaderProgram* shader);
 
 

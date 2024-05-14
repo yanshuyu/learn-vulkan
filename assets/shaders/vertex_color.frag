@@ -1,5 +1,5 @@
 #version 460
-
+#extension GL_ARB_shading_language_include : require
 #include "common.glsl"
 
 layout(location = 0) in vec4 _vertColor;
@@ -12,4 +12,4 @@ layout(set=SET_INDEX_PER_MATERIAL, binding=0) uniform sampler2D _mainTex;
 void main()
 {
     o_fragColor = _vertColor * texture(_mainTex, _uv);
-} 
+}

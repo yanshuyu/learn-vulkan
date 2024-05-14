@@ -40,5 +40,5 @@ target_include_directories(${FRAMEWORK_NAME} PUBLIC ${LEARN_VK_ROOT_DIR}
                                                     ${VULKAN_INC_DIR})
 target_link_directories(${FRAMEWORK_NAME} PUBLIC  ${VULKAN_LIB_DIR})
 
-target_link_libraries(${FRAMEWORK_NAME} PUBLIC glm glfw vulkan-1.lib)
+target_link_libraries(${FRAMEWORK_NAME} PUBLIC glm glfw glslang SPIRV glslang-default-resource-limits vulkan-1.lib)
 

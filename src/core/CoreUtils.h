@@ -4,6 +4,7 @@
 #include"spdlog\spdlog.h"
 #include<stdexcept>
 
+
 // Macros
 #define NONE_COPYABLE(ClassName) ClassName(const ClassName &) = delete; \
 ClassName & operator = (const ClassName &) = delete;
@@ -95,6 +96,12 @@ struct TextureImportSetting
     VkSamplerAddressMode vAddressMode;
     VkSamplerAddressMode wAddressMode;
     VkBorderColor borderColor;
+};
+
+struct file_bytes
+{
+    char* bytes{nullptr};
+    size_t byteCnt{0};
 };
 
 
@@ -217,3 +224,10 @@ class Device;
 float vkutils_remap_anisotropy_level(float anisotropy01, const Device* pdevice);
 
 uint8_t* vkutils_stb_load_texture(Device* pdevice, const char* srcFile, bool srgb, bool readWriteEnable, int* w, int* h, VkFormat* fmt, int* dataSz);
+
+
+file_bytes futils_read_file_bytes(const char* filePath);
+
+void futils_free_file_bytes(file_bytes& fb);
+
+void futils_dump_file_bytes(const file_bytes& fb);

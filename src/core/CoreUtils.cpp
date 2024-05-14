@@ -1,6 +1,7 @@
 #include"core\CoreUtils.h"
 #include"core\Device.h"
 #include<stb\stb_image.h>
+#include<fstream>
 
 VkImageAspectFlags vkutils_get_image_input_asepect_mask(VkFormat fmt)
 {
@@ -335,4 +336,42 @@ uint8_t* vkutils_stb_load_texture(Device* pdevice, const char* srcFile, bool srg
     *fmt = fmts[fmtIdx];
     *dataSz = _w * _h * c;
     return pdata;
+}
+
+file_bytes futils_read_file_bytes(const char *filePath)
+{
+    file_bytes result{};
+    std::ifstream fs(filePath, std::ios_base::ate | std::ios_base::binary);
+    if (!fs.is_open())
+        return result;
+
+    size_t srcSz = fs.tellg();
+    result.byteCnt = srcSz;
+    result.bytes = (char*)malloc(srcSz+1);
+    memset(result.bytes, NULL, srcSz+1);
+
+    fs.seekg(std::ios_base::beg);
+    fs.read(result.bytes, srcSz);
+    fs.close();
+
+    return result;
+}
+
+void futils_free_file_bytes(file_bytes& fb)
+{
+    if (fb.bytes && fb.byteCnt > 0)
+    {
+        free(fb.bytes);
+        fb.bytes = nullptr;
+        fb.byteCnt = 0;
+    }
+}
+
+void futils_dump_file_bytes(const file_bytes& fb)
+{
+    for (size_t i = 0; i < fb.byteCnt; i++)
+    {
+        LOGI("{}", fb.bytes[i]);
+    }
+    
 }
