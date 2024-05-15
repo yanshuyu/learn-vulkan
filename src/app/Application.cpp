@@ -99,7 +99,7 @@ bool Application::Prepare(Window* window)
     }
     
 
-    if (!m_pDevice->Initailze(suitableGpu))
+    if (!m_pDevice->Initailze(suitableGpu, m_pVulkanInstance->GetApiVersion()))
     {
        LOGE("-->App Prepare: Failed to init device!");
        return false; 

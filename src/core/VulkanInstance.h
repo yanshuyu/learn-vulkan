@@ -40,4 +40,7 @@ public:
     VkPhysicalDevice RequestPhysicalDevice(VkQueueFlags queueOperation, VkSurfaceKHR presentSurface);
 
     void Release();
+
+    uint32_t GetApiVersion() const { return m_ApiVersion; }
+    bool IsDebugEnable() const { return m_DebugEnabled; }
 };

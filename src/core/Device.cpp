@@ -4,6 +4,8 @@
 #include<map>
 #include<utility>
 #include<set>
+#include<glslang\glslang\Include\glslang_c_interface.h>
+#include<glslang\glslang\Public\resource_limits_c.h>
 
 Device::Device()
     : _BufferPool(
@@ -35,7 +37,7 @@ Device::Device()
     
 }
 
- bool Device::Initailze(VkPhysicalDevice phyDevice)
+ bool Device::Initailze(VkPhysicalDevice phyDevice, uint32_t driverVersion)
  {
     if (IsValid())
         return true;
@@ -69,6 +71,8 @@ Device::Device()
         ok &= CreateCommandPools();
         //ok &= CreateCommandBuffers();
     }
+
+    m_vkApiVersion = driverVersion;
 
     return ok;
  }
@@ -419,6 +423,125 @@ bool Device::DestroyFence(Fence* pFence)
     pFence->Release();
     _FencePool.Return(pFence);
 
+    return true;
+}
+
+bool Device::CompileShader(const char *path, VkShaderStageFlagBits stage, std::vector<char> &spvCodes) const
+{
+    static std::unordered_map<VkShaderStageFlagBits, glslang_stage_t> _vkstageToGlslangStage = {
+        {VK_SHADER_STAGE_VERTEX_BIT, GLSLANG_STAGE_VERTEX},
+        {VK_SHADER_STAGE_FRAGMENT_BIT, GLSLANG_STAGE_FRAGMENT},
+    };
+
+    static auto _glslang_dump_error = [=](const char *stageStr, const char *filePath, glslang_shader_t *shader, glslang_program_t *program)
+    {
+        LOGE("GLSLang {} {} Error!\n{}\n{}\n",
+             stageStr,
+             filePath,
+             glslang_shader_get_info_log(shader),
+             glslang_shader_get_info_debug_log(shader));
+
+        glslang_shader_delete(shader);
+        if (program) glslang_program_delete(program);
+    };
+
+    static auto _glslang_local_include_resolve = [](void *ctx, const char *header_name, const char *includer_name, size_t include_depth) -> glsl_include_result_t *
+    {
+        std::string incPath = (const char *)ctx;
+        size_t pos = incPath.find_last_of('/');
+        if (pos == std::string::npos)
+            pos = incPath.find_last_of('\\');
+
+        pos++;
+        incPath.replace(pos, incPath.size() - pos, header_name);
+
+        file_bytes headerSrc = futils_read_file_bytes(incPath.c_str());
+        assert(headerSrc.byteCnt > 0);
+
+        glsl_include_result_t *result = new glsl_include_result_t();
+        result->header_name = header_name;
+        result->header_data = headerSrc.bytes;
+        result->header_length = headerSrc.byteCnt;
+
+        return result;
+    };
+
+    static auto _glslang_include_free = [](void *ctx, glsl_include_result_t *result) -> int
+    {
+        file_bytes fileResult{(char *)result->header_data, result->header_length};
+        futils_free_file_bytes(fileResult);
+        delete result;
+        return 0;
+    };
+
+    static auto _vkapi_version_to_glslang_vkclient_version = [](uint32_t apiVersion) -> glslang_target_client_version_t 
+    {
+        int major = VK_API_VERSION_MAJOR(apiVersion);
+        int minor = VK_API_VERSION_MINOR(apiVersion);
+        int clientVerion = (major << 22) | (minor << 12);
+        return (glslang_target_client_version_t)clientVerion;
+    };
+
+    file_bytes glslSrc = futils_read_file_bytes(path);
+    glslang_input_t glslangInput{};
+    glslang_shader_t *glslangShader{nullptr};
+    glslang_program_t *glslangProgram{nullptr};
+
+    LOGI("GLSLang compile {}\n{}", path, glslSrc.bytes);
+
+    glslang_initialize_process();
+
+    glslangInput.language = GLSLANG_SOURCE_GLSL;
+    glslangInput.stage = _vkstageToGlslangStage[stage];
+    glslangInput.client = GLSLANG_CLIENT_VULKAN;
+    glslangInput.client_version = _vkapi_version_to_glslang_vkclient_version(m_vkApiVersion);
+    glslangInput.target_language = GLSLANG_TARGET_SPV;
+    glslangInput.target_language_version = GLSLANG_TARGET_SPV_1_5,
+    glslangInput.code = glslSrc.bytes;
+    glslangInput.default_version = 100;
+    glslangInput.default_profile = GLSLANG_NO_PROFILE;
+    glslangInput.force_default_version_and_profile = false;
+    glslangInput.forward_compatible = false;
+    glslangInput.messages = GLSLANG_MSG_DEFAULT_BIT;
+    glslangInput.resource = glslang_default_resource();
+    glslangInput.callbacks_ctx = (void*)path;
+    glslangInput.callbacks.include_local = _glslang_local_include_resolve;
+    glslangInput.callbacks.free_include_result = _glslang_include_free;
+
+    glslangShader = glslang_shader_create(&glslangInput);
+
+    if (!glslang_shader_preprocess(glslangShader, &glslangInput))
+    {
+        _glslang_dump_error("preprocess", path, glslangShader, glslangProgram);
+        futils_free_file_bytes(glslSrc);
+        return false;
+    }
+
+    if (!glslang_shader_parse(glslangShader, &glslangInput))
+    {
+        _glslang_dump_error("parse", path, glslangShader, glslangProgram);
+        futils_free_file_bytes(glslSrc);
+        return false;
+    }
+
+    glslangProgram = glslang_program_create();
+    glslang_program_add_shader(glslangProgram, glslangShader);
+    if (!glslang_program_link(glslangProgram, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
+    {
+        _glslang_dump_error("linking", path, glslangShader, glslangProgram);
+        futils_free_file_bytes(glslSrc);
+        return false;
+    }
+
+    glslang_program_SPIRV_generate(glslangProgram, glslangInput.stage);
+    size_t spvWordSz = glslang_program_SPIRV_get_size(glslangProgram);
+    spvCodes.resize(spvWordSz * sizeof(uint32_t));
+    glslang_program_SPIRV_get(glslangProgram, (uint32_t *)spvCodes.data());
+
+    glslang_program_delete(glslangProgram);
+    glslang_shader_delete(glslangShader);
+    glslang_finalize_process();
+    futils_free_file_bytes(glslSrc);
     return true;
 }
 

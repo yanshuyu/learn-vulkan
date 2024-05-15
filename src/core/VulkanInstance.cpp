@@ -114,7 +114,11 @@ bool VulkanInstance::Initailize()
     if (m_ApiVersion == 0)
         vkEnumerateInstanceVersion(&m_ApiVersion);
 
-    LOGI("-->Vulkan Instance Veriosn: {}.{}.{}", VK_VERSION_MAJOR(m_ApiVersion), VK_VERSION_MINOR(m_ApiVersion), VK_VERSION_PATCH(m_ApiVersion));
+    LOGI("-->Vulkan Instance Veriosn[variant|major|minor|patch]: {}.{}.{}.{}",
+         VK_API_VERSION_VARIANT(m_ApiVersion),
+         VK_VERSION_MAJOR(m_ApiVersion),
+         VK_VERSION_MINOR(m_ApiVersion),
+         VK_VERSION_PATCH(m_ApiVersion));
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;

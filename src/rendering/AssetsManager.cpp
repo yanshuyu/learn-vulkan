@@ -5,9 +5,6 @@
 #include"rendering\DescriptorSetManager.h"
 #include<stb\stb_image.h>
 #include<spirv-reflect/spirv_reflect.h>
-#include<glslang\glslang\Include\glslang_c_interface.h>
-#include<glslang\glslang\Public\resource_limits_c.h>
-#include<fstream>
 #include<regex>
 
 
@@ -62,15 +59,17 @@ ShaderProgram* AssetsManager::LoadProgram(const char* vs, const char* vsName, co
     if (pos != s_programs.end())
         return pos->second.get();
 
-    auto result = s_programs.emplace(std::make_pair(k_program, new ShaderProgram(s_pDevice)));
-    ShaderProgram *program = result.first->second.get();
-    program->SetName(k_program.c_str());
     auto vsShader = _is_spv_file_extendsion(vs) ?
                 _load_shader_moudle_spv(vs, vsName, VK_SHADER_STAGE_VERTEX_BIT) : _load_shader_moudle_glsl(vs, vsName, VK_SHADER_STAGE_VERTEX_BIT);
     auto fsShader = _is_spv_file_extendsion(fs) ? 
                 _load_shader_moudle_spv(fs, fsName, VK_SHADER_STAGE_FRAGMENT_BIT) : _load_shader_moudle_glsl(fs, fsName, VK_SHADER_STAGE_FRAGMENT_BIT);
-    assert(vsShader);
-    assert(fsShader);
+
+    if (!vsShader || !fsShader)
+        return nullptr;
+
+    auto result = s_programs.emplace(std::make_pair(k_program, new ShaderProgram(s_pDevice)));
+    ShaderProgram *program = result.first->second.get();
+    program->SetName(k_program.c_str());
     program->AddShaderStage(vsShader);
     program->AddShaderStage(fsShader);
     assert(_parse_shader_reflection(program));
@@ -142,114 +141,10 @@ const ShaderStageInfo *AssetsManager::_load_shader_moudle_glsl(const char *srcFi
     auto itr = s_shaderModules.find(fullPath);
     if (itr == s_shaderModules.end())
     {
-        static std::unordered_map<VkShaderStageFlagBits, glslang_stage_t> _vkstageToGlslangStage = {
-            {VK_SHADER_STAGE_VERTEX_BIT, GLSLANG_STAGE_VERTEX},
-            {VK_SHADER_STAGE_FRAGMENT_BIT, GLSLANG_STAGE_FRAGMENT},
-        };
-        
-        static auto _glslang_dump_error = [=](const char *stageStr, const char *filePath, glslang_shader_t *shader, glslang_program_t *program)
-        {
-            LOGE("GLSLang {} {} Error!\n{}\n{}\n",
-                 stageStr,
-                 filePath,
-                 glslang_shader_get_info_log(shader),
-                 glslang_shader_get_info_debug_log(shader));
-
-            glslang_shader_delete(shader);
-            if (program)
-                glslang_program_delete(program);
-        };
-
-        static auto _glslang_local_include_resolve = [](void* ctx, const char* header_name, const char* includer_name, size_t include_depth) -> glsl_include_result_t*
-        {
-            std::string path = (const char*)ctx;
-            size_t pos = path.find_last_of('/');
-            if (pos == std::string::npos)
-                pos = path.find_last_of('\\');
-
-            pos++;
-            path.replace(pos, path.size() - pos, header_name);
-
-            file_bytes headerSrc = futils_read_file_bytes(path.c_str());
-            assert(headerSrc.byteCnt > 0);
-
-            glsl_include_result_t* result = new glsl_include_result_t();
-            result->header_name = header_name;
-            result->header_data = headerSrc.bytes;
-            result->header_length = headerSrc.byteCnt;
-    
-            return result;
-        };
-
-        static auto _glslang_include_free = [](void* ctx, glsl_include_result_t* result) -> int
-        {
-            file_bytes fileResult{(char*)result->header_data, result->header_length};
-            futils_free_file_bytes(fileResult);
-            delete result;
-            return 0;
-        };
-
-        file_bytes glslSrc = futils_read_file_bytes(fullPath.c_str());
-        glslang_input_t glslangInput{};
-        glslang_shader_t *glslangShader{nullptr};
-        glslang_program_t *glslangProgram{nullptr};
-
        
-        LOGI("GLSLang compile {}\n{}", fullPath.c_str(), glslSrc.bytes);
-
-        glslang_initialize_process();
-
-        glslangInput.language = GLSLANG_SOURCE_GLSL;
-        glslangInput.stage = _vkstageToGlslangStage[stage];
-        glslangInput.client = GLSLANG_CLIENT_VULKAN;
-        glslangInput.client_version = GLSLANG_TARGET_VULKAN_1_2;
-        glslangInput.target_language = GLSLANG_TARGET_SPV;
-        glslangInput.target_language_version = GLSLANG_TARGET_SPV_1_5,
-        glslangInput.code = glslSrc.bytes;
-        glslangInput.default_version = 100;
-        glslangInput.default_profile = GLSLANG_NO_PROFILE;
-        glslangInput.force_default_version_and_profile = false;
-        glslangInput.forward_compatible = false;
-        glslangInput.messages = GLSLANG_MSG_DEFAULT_BIT;
-        glslangInput.resource = glslang_default_resource();
-        glslangInput.callbacks_ctx = (void*)fullPath.c_str();
-        glslangInput.callbacks.include_local = _glslang_local_include_resolve;
-        glslangInput.callbacks.free_include_result = _glslang_include_free;
-
-        glslangShader = glslang_shader_create(&glslangInput);
-        if (!glslang_shader_preprocess(glslangShader, &glslangInput))
-        {
-            _glslang_dump_error("preprocess", fullPath.c_str(), glslangShader, glslangProgram);
-            futils_free_file_bytes(glslSrc);
+        std::vector<char> spvBytes;
+        if(!s_pDevice->CompileShader(fullPath.c_str(), stage, spvBytes))
             return nullptr;
-        }
-
-        if (!glslang_shader_parse(glslangShader, &glslangInput))
-        {
-            _glslang_dump_error("parse", fullPath.c_str(), glslangShader, glslangProgram);
-            futils_free_file_bytes(glslSrc);
-            return nullptr;
-        }
-
-        glslangProgram = glslang_program_create();
-        glslang_program_add_shader(glslangProgram, glslangShader);
-        if (!glslang_program_link(glslangProgram, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
-        {
-            _glslang_dump_error("linking", fullPath.c_str(), glslangShader, glslangProgram);
-            futils_free_file_bytes(glslSrc);
-            return nullptr;
-        }
-
-  
-        glslang_program_SPIRV_generate(glslangProgram, glslangInput.stage);
-        size_t spvWordSz = glslang_program_SPIRV_get_size(glslangProgram);
-        std::vector<char> spvBytes(spvWordSz * sizeof(uint32_t));
-        glslang_program_SPIRV_get(glslangProgram, (uint32_t*)spvBytes.data());
-
-        glslang_program_delete(glslangProgram);
-        glslang_shader_delete(glslangShader);
-        glslang_finalize_process();
-        futils_free_file_bytes(glslSrc);
 
         VkShaderModule shaderMou{VK_NULL_HANDLE};
         VkShaderModuleCreateInfo shaderMouCreateInfo{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};

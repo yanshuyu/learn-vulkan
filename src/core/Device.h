@@ -16,6 +16,7 @@
 class Device
 {
 private:
+    uint32_t m_vkApiVersion{0};
     VkPhysicalDevice m_vkPhyDevice{VK_NULL_HANDLE};
     QueueFamilyIndices m_DeviceQueueFamilyIndices{};
     VkPhysicalDeviceProperties m_PhyDeviceProps{};
@@ -46,7 +47,7 @@ public:
     void SetDeviceExtendsionHint(const char* extendsionName, bool enabled) { vkutils_toggle_extendsion_or_layer_name_active(m_DeviceExtendsions, extendsionName, enabled); }
     void ResetAllHints();
 
-    bool Initailze(VkPhysicalDevice phyDevice);
+    bool Initailze(VkPhysicalDevice phyDevice, uint32_t driverVersion);
     bool IsValid() const { return m_vkDevice != VK_NULL_HANDLE; }
     void Release();
     void WaitIdle() const;
@@ -90,7 +91,11 @@ public:
 
     Fence* CreateFence(bool signaled = false);
     bool DestroyFence(Fence* pFence);
-    
+
+    // shader compiling
+    bool CompileShader(const char* path, VkShaderStageFlagBits stage, std::vector<char>& spvCodes) const;
+
+    uint32_t GetDriverVersion() const { return m_vkApiVersion; }
 private:
     bool CreateLogicalDevice(VkPhysicalDevice phyDevice);
     bool CreateCommandPools();
