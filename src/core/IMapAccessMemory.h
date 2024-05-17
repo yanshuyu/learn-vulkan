@@ -13,7 +13,7 @@ protected:
     uint8_t* _MappedData{nullptr};
     MapAcess _mapAccessMode{Read};
     
-    void Flush();
+
 
 public:
     IMapAccessMemory() {};
@@ -31,7 +31,7 @@ public:
     void UnMap();
     size_t SetData(const uint8_t* data, size_t dataLen, size_t offset);
     size_t GetData(uint8_t* buffer, size_t bufLen, size_t offset);
-
+    void Flush();
 };
 
 
