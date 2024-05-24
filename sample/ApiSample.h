@@ -18,6 +18,7 @@ class TextureCube;
 struct PerFrameData;
 struct PerCameraData;
 struct PerObjectData;
+class Material;
 
 
 class ApiSample : public Application
@@ -43,9 +44,11 @@ private:
     std::unique_ptr<Mesh> _quad{};
     ShaderProgram* _vertColorProgram{nullptr};
     std::unique_ptr<GraphicPipeline> _quadPipeline{};
-    VkDescriptorSet _quadSet{VK_NULL_HANDLE};
+    //VkDescriptorSet _quadSet{VK_NULL_HANDLE};
+    std::unique_ptr<Material> _quad_mat{};
     std::unique_ptr<Texture2D> _vkLogoTex{};
     std::unique_ptr<PerObjectData> _quadInstanceData{};
+    glm::vec4 _quadMainColor{1};
 
     // skybox
     std::unique_ptr<Mesh> _cube{};

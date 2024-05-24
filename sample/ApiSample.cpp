@@ -13,6 +13,7 @@
 #include<rendering\Texture2D.h>
 #include<rendering\TextureCube.h>
 #include<rendering\RenderData.h>
+#include<rendering\Material.h>
 #include<glm\gtc\matrix_transform.hpp>
 #include"input\InputManager.h"
 
@@ -150,6 +151,17 @@ void ApiSample::Update()
             GameTimer::GetDeltaTime());
     m_window->SetTitle(_titleStr);
 
+    static int sign = 1;
+    if (_quadMainColor.g > 1 || _quadMainColor.g < 0)
+    {    
+        sign *= -1;
+        _quadMainColor.g = std::clamp(_quadMainColor.g, 0.f, 1.f);
+    }
+
+    _quadMainColor.g += _perFrameData->detalTime * sign * 0.5f;
+    //LOGI("color -> ({}, {}, {}, {})", _quadMainColor.r, _quadMainColor.g, _quadMainColor.b, _quadMainColor.a);
+
+    _quad_mat->SetVector("_mainColor", _quadMainColor);
 
 }
 
@@ -167,6 +179,7 @@ void ApiSample::Draw()
     vkResetFences(m_pDevice->GetHandle(), 1, &m_CmdBufferAvalible); // reset to unsignal state
     VKCALL_THROW_IF_FAILED(vkResetCommandBuffer(m_CmdBuffer, 0),"-->SampleAPI Draw: Failed to reset command buffer!");
     
+    Material::Update();
     RecordDrawCommands(imageIdx);
 
     // submit commands to queue
@@ -231,7 +244,8 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     // ***************************** draw call cmds **************************************
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerFrameData::sPipelineLayout, PerFrame, 1, &_perFrameData->dataSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerCameraData::sPipelineLayout, PerCamera, 1, &_perCameraData->dataSet, 0, nullptr);
-    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerMaterial, 1, &_quadSet, 0, nullptr);
+    //vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerMaterial, 1, &_quadSet, 0, nullptr);
+    _quad_mat->Bind(m_CmdBuffer);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_quadInstanceData->dataSet, 0, nullptr);
     vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _quadPipeline->GetHandle());
     vkCmdBindVertexBuffers(m_CmdBuffer, 0, _quad->GetAttributeCount(), _quad->GetAttributeBindingHandls(), attrBindingZeroOffsets);
@@ -404,7 +418,10 @@ void ApiSample::_set_up_quad()
 
     _vkLogoTex.reset(new Texture2D(m_pDevice.get()));
     _vkLogoTex->LoadFromFile("textures/VulkanCar_678x452.jpg");
-    
+
+    _quad_mat.reset(new Material(_vertColorProgram));
+    _quad_mat->SetTexture("_mainTex", _vkLogoTex.get());
+
     // triangle pipeline
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
@@ -416,6 +433,7 @@ void ApiSample::_set_up_quad()
     _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
     assert(_quadPipeline->Apply());
 
+    /*
     _quadSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_vertColorProgram));
     VkDescriptorImageInfo texInfo{_vkLogoTex->GetSampler(), _vkLogoTex->GetView(), _vkLogoTex->GetLayout()};
     VkWriteDescriptorSet texWriteSet{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -426,6 +444,7 @@ void ApiSample::_set_up_quad()
     texWriteSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     texWriteSet.pImageInfo = &texInfo;
     vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &texWriteSet, 0, nullptr);
+*/
 
     float texAspectRatio = _vkLogoTex->GetWidth() / (float)_vkLogoTex->GetHeight();
     glm::mat4 M{1.f};
@@ -439,6 +458,7 @@ void ApiSample::_set_up_quad()
 
 void ApiSample::_clean_up_quad()
 {
+    _quad_mat = nullptr;
     _vkLogoTex->Release();
     _quadPipeline->Release();
     _quad->Release();
