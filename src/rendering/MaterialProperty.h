@@ -44,6 +44,8 @@ public:
     MaterialProperty(const SetBindingInfo* sbi, const char* name, Type t);
     virtual ~MaterialProperty() {};
     virtual void Update(VkDevice device, VkDescriptorSet set) const = 0;
+
+    static size_t NameToHashId(const char* name) { return std::hash<std::string>()(name);} 
 };
 
 template <typename T>
@@ -73,6 +75,25 @@ typedef MaterialPropertyUniform<int> MaterialPropertyInt;
 typedef MaterialPropertyUniform<bool> MaterialPropertyBool;
 typedef MaterialPropertyUniform<glm::vec4> MaterialPropertyVector;
 typedef MaterialPropertyUniform<glm::mat4> MaterialPropertyMatrix;
+
+class MaterialPropertyUserBlock: public MaterialProperty
+{
+private:
+    std::vector<uint8_t> _block;
+    Buffer *_ubo;
+    const UniformInfo *_typeInfo;
+
+public:
+    MaterialPropertyUserBlock(const SetBindingInfo *uboInfo, Buffer *ubo, const UniformInfo *uniform);
+    ~MaterialPropertyUserBlock(){}
+
+    NONE_COPYABLE_NONE_MOVEABLE(MaterialPropertyUserBlock)
+
+    void Set(const uint8_t* data, size_t dataSz, size_t offet = 0);
+    const uint8_t* Get() const { return _block.data(); }
+    size_t GetSize() const { return _block.size(); }
+    void Update(VkDevice device, VkDescriptorSet set) const override;
+};
 
 template <typename T>
 class MaterialPropertyUniformArray : public MaterialProperty
@@ -123,38 +144,21 @@ public:
     void Update(VkDevice device, VkDescriptorSet set) const override;
 };
 
-class MaterialPropertyUserBlock: public MaterialProperty
-{
-private:
-    std::vector<uint8_t> _block;
-    Buffer *_ubo;
-    const UniformInfo *_typeInfo;
 
-public:
-    MaterialPropertyUserBlock(const SetBindingInfo *uboInfo, Buffer *ubo, const UniformInfo *uniform);
-    ~MaterialPropertyUserBlock(){}
-
-    NONE_COPYABLE_NONE_MOVEABLE(MaterialPropertyUserBlock)
-
-    void Set(const uint8_t* data, size_t dataSz, size_t offet = 0);
-    const uint8_t* Get() const { return _block.data(); }
-    size_t GetSize() const { return _block.size(); }
-    void Update(VkDevice device, VkDescriptorSet set) const override;
-};
 
 
 template<typename T>
 class MaterialPropertyImage : MaterialProperty
 {
 private:
-    const T* _tex;
+    T* _tex;
 
 public:
     MaterialPropertyImage(const SetBindingInfo* sbi);
     ~MaterialPropertyImage() {}
 
-    void Set(const T* tex) { _tex = tex; }
-    const T* Get() const { return _tex; }
+    void Set(T* tex) { _tex = tex; }
+    T* Get() const { return _tex; }
 
     void Update(VkDevice device, VkDescriptorSet set) const override;
 };

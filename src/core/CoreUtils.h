@@ -105,6 +105,16 @@ struct file_bytes
 };
 
 
+enum SetIndices
+{
+    PerFrame,
+    PerCamera,
+    PerMaterial,
+    PerObject,
+    MaxSetIndex,
+};
+
+
 
 // Functions
 inline bool vkutils_is_depth_and_stencil_format(VkFormat fmt)

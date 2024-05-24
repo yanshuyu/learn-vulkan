@@ -370,7 +370,7 @@ void Device::FreeMemory(VkDeviceMemory mem)
 }
 
 
-Buffer* Device::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp)
+Buffer* Device::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp,  const char* name)
 {
     if (!IsValid())
     {
@@ -383,7 +383,7 @@ Buffer* Device::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemo
     desc.usage = usage;
     desc.memFlags = memProp;
     Buffer *pBuf = _BufferPool.Get();
-    assert(pBuf->_create(desc));
+    assert(pBuf->_create(desc, name));
     return pBuf;
 }
 

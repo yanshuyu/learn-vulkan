@@ -39,7 +39,7 @@ static MaterialProperty::Type _image_type_to_property_type(ImageType it, bool is
 MaterialProperty::MaterialProperty(const SetBindingInfo* sbi, const char* propName, Type t)
 : setBindingInfo(sbi)
 , name(propName)
-, nameHashCode(std::hash<std::string>()(name))
+, nameHashCode(MaterialProperty::NameToHashId(propName))
 , type(t)
 {
 }

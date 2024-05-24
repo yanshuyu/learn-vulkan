@@ -28,9 +28,10 @@ private:
     BufferDesc _Desc{};
     VkBuffer _Buffer{VK_NULL_HANDLE};
     VkDeviceMemory _BufferMem{VK_NULL_HANDLE};
+    std::string _name{};
 
 protected:
-    bool _create(BufferDesc desc);
+    bool _create(BufferDesc desc, const char* name = nullptr);
     void Release() override;
 
 public:
@@ -45,6 +46,7 @@ public:
     VkMemoryPropertyFlags GetMemoryProperties() const override { return _Desc.memFlags; }
     VkBuffer GetHandle() const { return _Buffer; }
     BufferDesc GetDesc() const {return _Desc; }
+    const char* GetName() const { return _name.c_str(); }
 
     bool IsValid() const override { return  VKHANDLE_IS_NOT_NULL(_Buffer) && VKHANDLE_IS_NOT_NULL(_BufferMem); }
     bool CanMap() const override { return IsValid() && IMapAccessMemory::CanMap(); }

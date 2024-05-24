@@ -135,7 +135,8 @@ public:
     void AddSetBinding(int set, const std::vector<SetBindingInfo>& bindings) { _setbindingInfos[set] = bindings; }
     void AddSetBinding(int set, std::vector<SetBindingInfo>&& bindings) { _setbindingInfos[set] = std::move(bindings); }
     const std::vector<SetBindingInfo>* GetSetBinding(int set) const;
-    int GetSetCount() const { return _setbindingInfos.size(); }
+    size_t GetSetCount() const { return _setbindingInfos.size(); }
+    void GetSets(size_t* sets);
     bool HasSet(int set) const { return _setbindingInfos.find(set) != _setbindingInfos.end(); }
 
     VkPipelineLayout GetPipelineLayout() const { return _pipelineLayout; }

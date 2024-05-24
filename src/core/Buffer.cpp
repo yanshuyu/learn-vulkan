@@ -13,7 +13,7 @@ VkDevice Buffer::GetDeviceHandle() const
     return _pDevice->GetHandle(); 
 }
 
-bool Buffer::_create(BufferDesc desc)
+bool Buffer::_create(BufferDesc desc, const char* name)
 {
     VkBufferCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -55,6 +55,8 @@ bool Buffer::_create(BufferDesc desc)
     _Desc = desc;
     _Buffer = createdBuffer;
     _BufferMem = allocedMem;
+    if (name)
+        _name.assign(name);
 
     return true;
   }

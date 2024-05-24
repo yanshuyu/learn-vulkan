@@ -7,15 +7,6 @@
 class Device;
 class ShaderProgram;
 
-enum SetIndices
-{
-    PerFrame,
-    PerCamera,
-    PerMaterial,
-    PerObject,
-    MaxSetIndex,
-};
-
 
 
 
@@ -61,6 +52,9 @@ private:
     static std::unordered_map<size_t, std::unique_ptr<AutoDescriptorPool>> s_PerMaterialDescriptorPools;
     static Device* s_Device;
 
+    static VkDescriptorSetLayout s_DummySetLayout;
+    static VkDescriptorSet s_DummySet;
+
 public:
     DescriptorSetManager() = delete;
     ~DescriptorSetManager() = delete;
@@ -77,6 +71,9 @@ public:
     static VkDescriptorSet AllocDescriptorSet(SetIndices setIdx, size_t setHash);
     static bool FreeDescriptorSet(SetIndices setIdx, size_t setHash, VkDescriptorSet set);
     static void ResetDescriptorPool(SetIndices setIdx, size_t setHash);
+    
+    static VkDescriptorSetLayout GetDummySetLayout() { return s_DummySetLayout; }
+    static VkDescriptorSet GetDummyDescriptorSet() { return s_DummySet; }
    
     static size_t DefaultProgramSetHash(const ShaderProgram* program);
 };

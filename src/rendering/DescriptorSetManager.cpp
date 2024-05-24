@@ -4,6 +4,8 @@
 #include"rendering\RenderData.h"
 
 Device* DescriptorSetManager::s_Device{nullptr};
+VkDescriptorSetLayout DescriptorSetManager::s_DummySetLayout{VK_NULL_HANDLE};
+VkDescriptorSet DescriptorSetManager::s_DummySet{VK_NULL_HANDLE};
 
 DescriptorSetManager::AutoDescriptorPool::AutoDescriptorPool(VkDevice device, const std::vector<VkDescriptorSetLayoutBinding>& setBindings, size_t maxSetPerPool, VkDescriptorPoolCreateFlags poolFlags)
 : _device(device)
@@ -255,6 +257,11 @@ void DescriptorSetManager::Initailize(Device* pdevice)
     PerFrameData::Initailize(pdevice);
     PerCameraData::Initailize(pdevice);
     PerObjectData::Initailize(pdevice);
+
+    std::vector<VkDescriptorSetLayoutBinding> emptySetBindings{};
+    RegisterSetLayout(PerMaterial, 0, std::move(emptySetBindings), false, 1);
+    s_DummySetLayout= GetSetLayout(PerMaterial, 0);
+    s_DummySet = AllocDescriptorSet(PerMaterial, 0);
 }
  
 
@@ -275,6 +282,8 @@ void DescriptorSetManager::DeInitailize()
             pool->Release();
     }
     
+    s_DummySetLayout = VK_NULL_HANDLE;
+    s_DummySet = VK_NULL_HANDLE;
 }
 
 

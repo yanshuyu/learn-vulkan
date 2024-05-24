@@ -85,7 +85,7 @@ public:
 
     // Resource Create & Destroy
     
-    Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp);
+    Buffer* CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memProp, const char* name = nullptr);
     bool DestroyBuffer(Buffer* pBuffer);
 
 

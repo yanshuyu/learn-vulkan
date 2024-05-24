@@ -1,5 +1,6 @@
 #include"ShaderProgram.h"
 #include"core\Device.h"
+#include"rendering\DescriptorSetManager.h"
 #include<fstream>
 #include<spirv-reflect/spirv_reflect.h>
 
@@ -63,49 +64,62 @@ const std::vector<SetBindingInfo>* ShaderProgram::GetSetBinding(int set) const
     return &pos->second;
 }
 
+void ShaderProgram::GetSets(size_t* sets)
+{
+    int idx = 0;
+    for (auto &&si : _setbindingInfos)
+    {
+        sets[idx] = si.first;
+    }
+}
+
 
 bool ShaderProgram::Apply()
 {
     // create decriptor set layout
-  
-    std::vector<std::vector<VkDescriptorSetLayoutBinding>> setLayoutBindings(_setbindingInfos.size());
-    int setIdx = 0;
+    std::map<int, std::vector<VkDescriptorSetLayoutBinding>> setLayoutBindings{};
     for (auto &&sbi : _setbindingInfos) 
     {
-        setLayoutBindings[setIdx].reserve(sbi.second.size());
-        for (size_t bindingIdx = 0; bindingIdx < sbi.second.size(); bindingIdx++)
+        std::vector<VkDescriptorSetLayoutBinding> bindings(sbi.second.size());
+        for (size_t idx = 0; idx < sbi.second.size(); idx++)
         {
-            VkDescriptorSetLayoutBinding aBinding{};
-            const SetBindingInfo& aBindingInfo = sbi.second[bindingIdx];
-            aBinding.binding = aBindingInfo.binding;
-            aBinding.descriptorType = aBindingInfo.descriptorType;
-            aBinding.descriptorCount = aBindingInfo.descriptorCount;
-            aBinding.stageFlags = aBindingInfo.stageFlags;
-            setLayoutBindings[setIdx].push_back(aBinding);
+            bindings[idx].binding = sbi.second[idx].binding;
+            bindings[idx].descriptorType = sbi.second[idx].descriptorType;
+            bindings[idx].descriptorCount = sbi.second[idx].descriptorCount;
+            bindings[idx].stageFlags = sbi.second[idx].stageFlags;
         }
-        setIdx++;
+        setLayoutBindings.insert(std::make_pair(sbi.first, std::move(bindings)));
     }
 
+    int maxSetIdx = setLayoutBindings.size() > 0 ? setLayoutBindings.rbegin()->first : 0;
     std::vector<VkDescriptorSetLayout> setLayouts{};
-    setLayouts.reserve(_setbindingInfos.size());
-    for (setIdx = 0; setIdx < setLayoutBindings.size(); setIdx++)
+    if (maxSetIdx > 0)
     {
-        VkDescriptorSetLayoutCreateInfo createInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-        createInfo.bindingCount = setLayoutBindings[setIdx].size();
-        createInfo.pBindings = setLayoutBindings[setIdx].data();
-        VkDescriptorSetLayout createdSetLayout{VK_NULL_HANDLE};
-        if (VKCALL_FAILED(vkCreateDescriptorSetLayout(_pDevice->GetHandle(), &createInfo, nullptr, &createdSetLayout)))
+        setLayouts.resize(maxSetIdx + 1, VK_NULL_HANDLE);
+        for (size_t idx = 0; idx <= maxSetIdx; idx++)
         {
-            LOGE("Shader Program({}) Failed to create set({})'s layout!", _name.c_str(), setIdx);
-            _release_layouts(setLayouts);
-            return false;
+            if (setLayoutBindings.find(idx) == setLayoutBindings.end()) // descritor set gap, insert a dummy set
+            {
+                setLayouts[idx] = DescriptorSetManager::GetDummySetLayout();
+                LOGW("Shader program({}) find missing set({}), will automatically replace a dummy set!", _name.c_str(), idx);
+            }
+            else
+            {
+                VkDescriptorSetLayoutCreateInfo createInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+                createInfo.bindingCount = setLayoutBindings[idx].size();
+                createInfo.pBindings = setLayoutBindings[idx].data();
+                VkDescriptorSetLayout createdSetLayout{VK_NULL_HANDLE};
+                if (VKCALL_FAILED(vkCreateDescriptorSetLayout(_pDevice->GetHandle(), &createInfo, nullptr, &createdSetLayout)))
+                {
+                    LOGE("Shader Program({}) Failed to create set({})'s layout!", _name.c_str(), idx);
+                    _release_layouts(setLayouts);
+                    return false;
+                }
+                setLayouts[idx] = createdSetLayout;
+            }
         }
-
-        setLayouts.push_back(createdSetLayout);
     }
-    
 
-    
     // create pipeline layout
     VkPipelineLayoutCreateInfo createinfo{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     createinfo.setLayoutCount = setLayouts.size();
@@ -138,8 +152,10 @@ void ShaderProgram::_release_layouts(const std::vector<VkDescriptorSetLayout>& s
 {
     for (size_t i = 0; i < setLayouts.size(); i++)
     {
-        if (VKHANDLE_IS_NOT_NULL(setLayouts[i]))
-            vkDestroyDescriptorSetLayout(_pDevice->GetHandle(), setLayouts[i], nullptr);
+        if (VKHANDLE_IS_NULL(setLayouts[i]) || setLayouts[i] == DescriptorSetManager::GetDummySetLayout())
+            continue;
+        
+        vkDestroyDescriptorSetLayout(_pDevice->GetHandle(), setLayouts[i], nullptr);
     }
 }
 
