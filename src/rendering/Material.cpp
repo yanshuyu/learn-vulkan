@@ -48,6 +48,7 @@ void Material::SetShaderProgram(ShaderProgram* program)
             size_t idx = 0;
             for (auto &&buffer : _buffers)
             {
+                buffer.second->Map(MapAcess::Write);
                 _bufferWriteSets[idx].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
                 _bufferWriteSets[idx].dstSet = _vkSet;
                 _bufferWriteSets[idx].dstBinding = buffer.first;
@@ -89,6 +90,7 @@ void Material::_reset()
 
     for (auto &&buffer : _buffers)
     {
+        buffer.second->UnMap();
         _shaderProgram->GetDevice()->DestroyBuffer(buffer.second);
     }
     _buffers.clear();
@@ -132,7 +134,7 @@ void Material::_instantiate_set_binding_properties(const SetBindingInfo* setBind
         ubo = _shaderProgram->GetDevice()->CreateBuffer(setBinding->blockInfo->paddedSize,
                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                                                setBinding->name ? setBinding->name : setBinding->structureName);
+                                                                setBinding->name[0] != '\0' ? setBinding->name : setBinding->structureName);
         _buffers.insert(std::make_pair((size_t)setBinding->binding, ubo));
         for (size_t i = 0; i < setBinding->blockInfo->uniforms.size(); i++)
         {

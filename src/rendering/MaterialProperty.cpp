@@ -59,7 +59,7 @@ template<typename T>
 void MaterialPropertyUniform<T>::Update(VkDevice device, VkDescriptorSet set) const
 {
     //_ubo->Map();
-    _ubo->SetData((uint8_t*)&_data, _typeInfo->size, _typeInfo->offset);
+    assert(_ubo->SetData((uint8_t*)&_data, _typeInfo->size, _typeInfo->offset) > 0);
     //_ubo->UnMap();
 }
 
