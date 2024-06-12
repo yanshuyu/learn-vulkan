@@ -433,16 +433,45 @@ bool Device::CompileShader(const char *path, VkShaderStageFlagBits stage, std::v
         {VK_SHADER_STAGE_FRAGMENT_BIT, GLSLANG_STAGE_FRAGMENT},
     };
 
-    static auto _glslang_dump_error = [=](const char *stageStr, const char *filePath, glslang_shader_t *shader, glslang_program_t *program)
+    static auto _glslang_dump_log = [=](const char logType, const char *stageStr, const char *filePath, glslang_shader_t *shader, glslang_program_t *program, bool release = false)
     {
-        LOGE("GLSLang {} {} Error!\n{}\n{}\n",
-             stageStr,
-             filePath,
-             glslang_shader_get_info_log(shader),
-             glslang_shader_get_info_debug_log(shader));
+        bool ok = false;
+        switch (logType)
+        {
+        case 'e':
+            LOGE("GLSLang  {} {} ->\n{}\n{}\n",
+                 stageStr,
+                 filePath,
+                 glslang_shader_get_info_log(shader),
+                 glslang_shader_get_info_debug_log(shader));
+            ok = true;
+            break;
+        case 'w':
+            LOGW("GLSLang {} {} ->\n{}\n{}\n",
+                 stageStr,
+                 filePath,
+                 glslang_shader_get_info_log(shader),
+                 glslang_shader_get_info_debug_log(shader));
+            ok = true;
+            break;
+        case 'i':
+             LOGI("GLSLang {} {} ->\n{}\n{}\n",
+                stageStr,
+                filePath,
+                glslang_shader_get_info_log(shader),
+                glslang_shader_get_info_debug_log(shader));
+            ok = true;
+            break;
+        default:
+            break;
+        }
 
-        glslang_shader_delete(shader);
-        if (program) glslang_program_delete(program);
+        if (ok && release)
+        {
+            glslang_shader_delete(shader);
+            if (program)
+                glslang_program_delete(program);
+        }
     };
 
     static auto _glslang_local_include_resolve = [](void *ctx, const char *header_name, const char *includer_name, size_t include_depth) -> glsl_include_result_t *
@@ -487,7 +516,7 @@ bool Device::CompileShader(const char *path, VkShaderStageFlagBits stage, std::v
     glslang_shader_t *glslangShader{nullptr};
     glslang_program_t *glslangProgram{nullptr};
 
-    LOGI("GLSLang compile {}\n{}", path, glslSrc.bytes);
+    LOGI("GLSLang compiling {}\n{}", path, glslSrc.bytes);
 
     glslang_initialize_process();
 
@@ -512,14 +541,14 @@ bool Device::CompileShader(const char *path, VkShaderStageFlagBits stage, std::v
 
     if (!glslang_shader_preprocess(glslangShader, &glslangInput))
     {
-        _glslang_dump_error("preprocess", path, glslangShader, glslangProgram);
+        _glslang_dump_log('e', "preprocess", path, glslangShader, glslangProgram);
         futils_free_file_bytes(glslSrc);
         return false;
     }
 
     if (!glslang_shader_parse(glslangShader, &glslangInput))
     {
-        _glslang_dump_error("parse", path, glslangShader, glslangProgram);
+        _glslang_dump_log('e' ,"parse", path, glslangShader, glslangProgram);
         futils_free_file_bytes(glslSrc);
         return false;
     }
@@ -528,10 +557,12 @@ bool Device::CompileShader(const char *path, VkShaderStageFlagBits stage, std::v
     glslang_program_add_shader(glslangProgram, glslangShader);
     if (!glslang_program_link(glslangProgram, GLSLANG_MSG_SPV_RULES_BIT | GLSLANG_MSG_VULKAN_RULES_BIT))
     {
-        _glslang_dump_error("linking", path, glslangShader, glslangProgram);
+        _glslang_dump_log('e', "linking", path, glslangShader, glslangProgram);
         futils_free_file_bytes(glslSrc);
         return false;
     }
+
+    _glslang_dump_log('i', "finish", path, glslangShader, glslangProgram, false);
 
     glslang_program_SPIRV_generate(glslangProgram, glslangInput.stage);
     size_t spvWordSz = glslang_program_SPIRV_get_size(glslangProgram);
