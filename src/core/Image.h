@@ -58,6 +58,7 @@ public:
     VkImageLayout GetLayout() const {return m_Layout; }
     VkExtent3D GetExtent() const { return m_Desc.extents; }
     VkFormat GetFormat() const { return m_Desc.format; }
+    VkImageType GetType() const { return vkutils_get_image_type_form_extents(m_Desc.extents); }
     size_t GetMipLevelsCount() const { return m_Desc.mipLeves; }
 };
 
