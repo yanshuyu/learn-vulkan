@@ -14,6 +14,7 @@
 #include<rendering\TextureCube.h>
 #include<rendering\RenderData.h>
 #include<rendering\Material.h>
+#include<rendering\PipelineManager.h>
 #include<glm\gtc\matrix_transform.hpp>
 #include"input\InputManager.h"
 
@@ -242,10 +243,35 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
    
     static VkDeviceSize attrBindingZeroOffsets[MaxAttribute] = {0, 0, 0, 0, 0, 0};
     // ***************************** draw call cmds **************************************
+    float w = m_window->GetDesc().windowWidth;
+    float h = m_window->GetDesc().windowHeight;
+    VkViewport viewport{};
+    VkRect2D scissor{};
+    viewport.x = 0;
+    viewport.y = h;
+    viewport.width = w;
+    viewport.height = -h;
+    viewport.minDepth = 0;
+    viewport.maxDepth = 1;
+    scissor.offset = {0, 0};
+    scissor.extent = {(uint32_t)w, (uint32_t)h};
+    vkCmdSetViewport(m_CmdBuffer, 0, 1, &viewport);
+    vkCmdSetScissor(m_CmdBuffer, 0, 1, &scissor);
+    //vkCmdSetRasterizationSamplesEXT(m_CmdBuffer, VK_SAMPLE_COUNT_1_BIT);
+
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerFrameData::sPipelineLayout, PerFrame, 1, &_perFrameData->dataSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerCameraData::sPipelineLayout, PerCamera, 1, &_perCameraData->dataSet, 0, nullptr);
-    //vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerMaterial, 1, &_quadSet, 0, nullptr);
+        
+    _skyboxMat->Bind(m_CmdBuffer);
+    //vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxProgram->GetPipelineLayout(), PerMaterial, 1, &_skyboxSet, 0, nullptr);
+    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxProgram->GetPipelineLayout(), PerObject, 1, &_skyboxInstanceData->dataSet, 0, nullptr);
+    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxPipeline->GetHandle());
+    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _cube->GetAttributeCount(), _cube->GetAttributeBindingHandls(), attrBindingZeroOffsets);
+    vkCmdBindIndexBuffer(m_CmdBuffer, _cube->GetIndexBuffer()->GetHandle(), 0, _cube->GetIndexType());
+    vkCmdDrawIndexed(m_CmdBuffer, _cube->GetIndicesCount(), 1, 0, 0, 0);
+    
     _quad_mat->Bind(m_CmdBuffer);
+    //vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerMaterial, 1, &_quadSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _vertColorProgram->GetPipelineLayout(), PerObject, 1, &_quadInstanceData->dataSet, 0, nullptr);
     vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _quadPipeline->GetHandle());
     vkCmdBindVertexBuffers(m_CmdBuffer, 0, _quad->GetAttributeCount(), _quad->GetAttributeBindingHandls(), attrBindingZeroOffsets);
@@ -257,13 +283,7 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     vkCmdBindIndexBuffer(m_CmdBuffer, _cube->GetIndexBuffer()->GetHandle(), 0, _cube->GetIndexType());
     vkCmdDrawIndexed(m_CmdBuffer, _cube->GetIndicesCount(), 1, 0, 0, 0);
 
-    
-    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxProgram->GetPipelineLayout(), PerMaterial, 1, &_skyboxSet, 0, nullptr);
-    vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxProgram->GetPipelineLayout(), PerObject, 1, &_skyboxInstanceData->dataSet, 0, nullptr);
-    vkCmdBindPipeline(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _skyboxPipeline->GetHandle());
-    vkCmdBindVertexBuffers(m_CmdBuffer, 0, _cube->GetAttributeCount(), _cube->GetAttributeBindingHandls(), attrBindingZeroOffsets);
-    vkCmdBindIndexBuffer(m_CmdBuffer, _cube->GetIndexBuffer()->GetHandle(), 0, _cube->GetIndexType());
-    vkCmdDrawIndexed(m_CmdBuffer, _cube->GetIndicesCount(), 1, 0, 0, 0);
+
     // ***********************************************************************************
 
     vkCmdEndRenderPass(m_CmdBuffer);
@@ -421,17 +441,21 @@ void ApiSample::_set_up_quad()
 
     _quad_mat.reset(new Material(_vertColorProgram));
     _quad_mat->SetTexture("_mainTex", _vkLogoTex.get());
-
+    //_quad_mat->SetCullFace(VK_CULL_MODE_NONE);
+    _quad_mat->SetColorBlendMode(BlendMode::Multiply);
+    
     // triangle pipeline
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
-    _quadPipeline.reset(new GraphicPipeline(m_pDevice.get(), _vertColorProgram, _quad.get(), _renderPass.get()));
-    _quadPipeline->VSSetViewport({0.f, h, w, -h});
-    _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
-    _quadPipeline->FBDisableBlend(0);
-    _quadPipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
-    _quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
-    assert(_quadPipeline->Apply());
+    _quadPipeline.reset(
+                        new GraphicPipeline(m_pDevice.get(), PipelineManager::MakePipelineState(_quad.get(), _quad_mat.get(), _renderPass.get()))
+                        );
+    //_quadPipeline->VSSetViewport({0.f, h, w, -h});
+   // _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
+   //_quadPipeline->FBDisableBlend(0);
+    //_quadPipeline->RSSetCullFace(VK_CULL_MODE_BACK_BIT);
+    //_quadPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
+    //assert(_quadPipeline->Create());
 
     /*
     _quadSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_vertColorProgram));
@@ -604,17 +628,23 @@ void ApiSample::_set_up_sky_box()
     _cube->SetTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     assert(_cube->Apply());
 
+    _skyboxMat.reset(new Material(_skyboxProgram));
+    _skyboxMat->SetTextureCube("_SkyCubeTex", _skyboxTex.get());
+    _skyboxMat->SetCullFace(VK_CULL_MODE_FRONT_BIT);
+    _skyboxMat->DisableZWrite();
+
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
-    _skyboxPipeline.reset(new GraphicPipeline(m_pDevice.get(), _skyboxProgram, _cube.get(), _renderPass.get()));
-    _skyboxPipeline->VSSetViewport({0.f, h, w, -h});
-    _skyboxPipeline->VSSetScissor({0.f, 0.f, w, h});
-    _skyboxPipeline->RSSetCullFace(VK_CULL_MODE_FRONT_BIT);
-    _skyboxPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
-    _skyboxPipeline->FBDisableBlend(0);
-    _skyboxPipeline->DSDisableZWrite();
-    assert(_skyboxPipeline->Apply());
+    _skyboxPipeline.reset(new GraphicPipeline(m_pDevice.get(), PipelineManager::MakePipelineState(_cube.get(), _skyboxMat.get(), _renderPass.get())));
+    //_skyboxPipeline->VSSetViewport({0.f, h, w, -h});
+    //_skyboxPipeline->VSSetScissor({0.f, 0.f, w, h});
+    //_skyboxPipeline->RSSetCullFace(VK_CULL_MODE_FRONT_BIT);
+    //_skyboxPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
+    //_skyboxPipeline->FBDisableBlend(0);
+    //_skyboxPipeline->DSDisableZWrite();
+    //assert(_skyboxPipeline->Create());
 
+    /*
     _skyboxSet = DescriptorSetManager::AllocDescriptorSet(PerMaterial, DescriptorSetManager::DefaultProgramSetHash(_skyboxProgram));
     VkDescriptorImageInfo skyboxTexInfo{_skyboxTex->GetSampler(), _skyboxTex->GetView(), _skyboxTex->GetLayout()};
     VkWriteDescriptorSet skyboxTexWriteInfo{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
@@ -625,7 +655,7 @@ void ApiSample::_set_up_sky_box()
     skyboxTexWriteInfo.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     skyboxTexWriteInfo.pImageInfo = &skyboxTexInfo;
     vkUpdateDescriptorSets(m_pDevice->GetHandle(), 1, &skyboxTexWriteInfo, 0, nullptr);
-
+    */
     glm::mat4 M{1.f};
     M = glm::scale(M, {1, 1, 1});
     //M = glm::translate(M, {1, 0, 0});
@@ -638,6 +668,7 @@ void ApiSample::_set_up_sky_box()
 
 void ApiSample::_clean_up_sky_box()
 {
+    _skyboxMat = nullptr;
     _skyboxPipeline->Release();
     _skyboxInstanceData->Release();
     _skyboxTex->Release();

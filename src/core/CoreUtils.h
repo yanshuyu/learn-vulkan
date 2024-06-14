@@ -73,6 +73,24 @@ enum VertexAttribute
 
 typedef uint32_t index_t;
 
+enum BlendMode
+{
+    None,
+    Alpha,
+    Additive,
+    Multiply,
+    MaxBlendMode,
+};
+
+enum ColorMask
+{
+    R,
+    RG,
+    RGB,
+    RGBA,
+    A,
+};
+
 struct Rect
 {
     float x;

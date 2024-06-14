@@ -1,11 +1,10 @@
 #pragma once
 #include<core\CoreUtils.h>
+#include<core\PipelineState.h>
 #include"MaterialProperty.h"
+#include"PipelineManager.h"
 #include<unordered_map>
 #include<unordered_set>
-
-class ShaderProgram;
-
 
 
 class Material
@@ -15,6 +14,12 @@ private:
     std::unordered_map<size_t, MaterialProperty*> _properties{};
     std::unordered_map<size_t, Buffer*> _buffers{};
     VkDescriptorSet _vkSet{VK_NULL_HANDLE};
+
+    RasterizationState _rasterizationState{};
+    DepthStencilState _depthStencilState{};
+    BlendMode _colorBlendMode{BlendMode::None};
+    BlendMode _alphaBlendMode{BlendMode::None};
+    ColorMask _colorMask{ColorMask::RGBA};
     
     std::unordered_set<MaterialProperty*> _dirtyProperties{};
     static std::unordered_set<Material*> s_DirtyMaterials;
@@ -71,6 +76,9 @@ private:
 
     void _reset();
     void _update();
+
+
+    friend PipelineState PipelineManager::MakePipelineState(const Mesh* mesh, const Material* material, const RenderPass* renderPass, size_t subPassIdx);
 
 public:
     Material(ShaderProgram* shader);
@@ -129,6 +137,62 @@ public:
     void SetVectorArray(const char* name, const glm::vec4* data, size_t cnt, size_t offset = 0) { _set_property_array_value<glm::vec4, MaterialPropertyVectorArray, MaterialProperty::Type::VectorArray>(name, data, cnt, offset); }
     void SetMatrixArray(const char* name, const glm::mat4* data, size_t cnt, size_t offset = 0) { _set_property_array_value<glm::mat4, MaterialPropertyMatrixArray, MaterialProperty::Type::MatrixArray>(name, data, cnt, offset); }
 
+    // rasterization state
+    void SetCullFace(VkCullModeFlagBits cullMode) { _rasterizationState.cullMode = cullMode; }
+    VkCullModeFlags GetCullFace() const { return _rasterizationState.cullMode; }
+    void SetFrontFaceOrder(VkFrontFace order) { _rasterizationState.frontFace = order; }
+    VkFrontFace GetFrontFaceOrder() const { return _rasterizationState.frontFace; }
+    void SetFillFace(VkPolygonMode fillMode) { _rasterizationState.polygonMode = fillMode; }
+    VkPolygonMode GetFillFace() const { return _rasterizationState.polygonMode; }
+    void SetFillLineWidth(float w) { _rasterizationState.lineWidth = w; }
+    float GetFillLineWidth() const { return _rasterizationState.lineWidth; }
+    void EnableDepthBias() { _rasterizationState.depthBiasEnable = true; }
+    void DisableDepthBias() { _rasterizationState.depthBiasEnable = false; }
+    bool IsDepthBiasEnable() const { return _rasterizationState.depthBiasEnable; }
+    void SetDepthBiasFactors(float constantFactor, float slotFactor, float clampFactor) { _rasterizationState.depthBiasConstantFactor = constantFactor; _rasterizationState.depthBiasSlopeFactor =  slotFactor; _rasterizationState.depthBiasClamp = clampFactor; }
+    void GetDepthBiasFactors(float& constantFactor, float& slotFactor, float& clampFactor) const { constantFactor = _rasterizationState.depthBiasConstantFactor; slotFactor = _rasterizationState.depthBiasSlopeFactor; clampFactor = _rasterizationState.depthBiasClamp; }
+
+    // depth stencil state
+    void EnableZTest() { _depthStencilState.depthTestEnable = true; }
+    void DisableZTest() { _depthStencilState.depthTestEnable = false; }
+    bool IsZTestEnable() const { return _depthStencilState.depthTestEnable; }
+    void EnableZWrite() { _depthStencilState.depthWriteEnable = true; }
+    void DisableZWrite() { _depthStencilState.depthWriteEnable = false; }
+    bool IsZWriteEnable() const { return _depthStencilState.depthWriteEnable; }
+    void SetZTestOp(VkCompareOp op) { _depthStencilState.depthCompareOp; }
+    void EnableStencilTest() { _depthStencilState.stencilTestEnable = true; }
+    void DisableStencilTest() {_depthStencilState.stencilTestEnable = false; }
+    bool IsStencilTestEnable() const { return _depthStencilState.stencilTestEnable; }
+    void SetStencilOp(uint8_t ref, VkCompareOp cmp, uint8_t readMask = 255, uint8_t writeMask = 255, VkStencilOp passOp = VK_STENCIL_OP_REPLACE, VkStencilOp failOp = VK_STENCIL_OP_KEEP, VkStencilOp zFailOp = VK_STENCIL_OP_KEEP)
+    {
+        VkStencilOpState ss{};
+        ss.reference = ref;
+        ss.compareMask = readMask;
+        ss.compareOp = cmp;
+        ss.passOp = passOp;
+        ss.writeMask = writeMask;
+        ss.failOp = failOp;
+        ss.depthFailOp = zFailOp;
+        _depthStencilState.front = _depthStencilState.back = ss;
+    }
+    void GetStencilOp(uint8_t& ref, VkCompareOp& op, uint8_t& readMask, uint8_t& writeMask, VkStencilOp& passOp, VkStencilOp& failOp, VkStencilOp& zFailOp)
+    {
+        ref = _depthStencilState.front.reference;
+        op = _depthStencilState.front.compareOp;
+        readMask = _depthStencilState.front.compareMask;
+        writeMask = _depthStencilState.front.writeMask;
+        passOp = _depthStencilState.front.passOp;
+        failOp = _depthStencilState.front.failOp;
+        zFailOp = _depthStencilState.front.depthFailOp;
+    }
+
+    // blend
+    void SetColorBlendMode(BlendMode mode) { _colorBlendMode = mode; }
+    BlendMode GetColorBlendMode() const { return _colorBlendMode; }
+    void SetAlphaBlendMode(BlendMode mode) { _alphaBlendMode = mode; }
+    BlendMode GetAlphaBlendMode() const { return _alphaBlendMode; }
+    void SetColorMask(ColorMask mask) { _colorMask = mask; }
+    ColorMask GetColorMask() const { return _colorMask; }
     static void Update();
 };
 

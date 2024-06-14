@@ -54,7 +54,8 @@ private:
     std::unique_ptr<Mesh> _cube{};
     ShaderProgram* _skyboxProgram{nullptr};
     std::unique_ptr<GraphicPipeline> _skyboxPipeline{};
-    VkDescriptorSet _skyboxSet{VK_NULL_HANDLE};
+    //VkDescriptorSet _skyboxSet{VK_NULL_HANDLE};
+    std::unique_ptr<Material> _skyboxMat{};
     std::unique_ptr<TextureCube> _skyboxTex{};
     std::unique_ptr<PerObjectData> _skyboxInstanceData{};
 

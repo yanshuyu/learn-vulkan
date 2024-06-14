@@ -193,7 +193,7 @@ MaterialProperty* Material::_instantitate_uniform_property(const SetBindingInfo*
         assert(binding->imageInfo->layerArrayed == false);
         return (MaterialProperty*)new MaterialPropertyTex2D(binding);
     case ImageType::TexCube:
-         assert(binding->imageInfo->layerArrayed);
+         //assert(binding->imageInfo->layerArrayed);
          return (MaterialProperty*)new MaterialPropertyTexCube(binding);
     default:
         break;
