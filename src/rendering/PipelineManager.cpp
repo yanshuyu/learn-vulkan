@@ -5,7 +5,33 @@
 
 
 std::unordered_map<size_t, std::unique_ptr<GraphicPipeline>> PipelineManager::s_GraphicPipelines{};
+std::unordered_map<size_t, size_t> PipelineManager::s_RefrenceCounter{};
+std::unordered_map<GraphicPipeline*, size_t> PipelineManager::s_PipelineHashes{};
+Device* PipelineManager::s_pDevice{};
 
+void PipelineManager::Initailize(Device* pdevice)
+{
+    if (s_pDevice == nullptr)
+        s_pDevice = pdevice;
+}
+
+void PipelineManager::DeInitailize()
+{
+    if (s_GraphicPipelines.size() > 0)
+    {
+        LOGW("-->PipelineManager Memory leaks:\n")
+        for (auto itr = s_GraphicPipelines.begin(); itr != s_GraphicPipelines.end(); itr++)
+        {
+            if (itr->second->IsValid())
+                LOGW("Pipeline({}) hash({}) refcount({})", (void*)itr->second.get(), itr->first, s_RefrenceCounter[itr->first]);
+        }
+    }
+
+    s_GraphicPipelines.clear();
+    s_PipelineHashes.clear();
+    s_RefrenceCounter.clear();
+    s_pDevice = nullptr;
+}
 
 PipelineState PipelineManager::MakePipelineState(const Mesh* mesh, const Material* material, const RenderPass* renderPass, size_t subPassIdx)
 {
@@ -32,8 +58,8 @@ PipelineState PipelineManager::MakePipelineState(const Mesh* mesh, const Materia
     ps.iaState.topology = mesh->GetTopology();
 
     //view port & scissor
-    ps.dynamicState.push_back(VK_DYNAMIC_STATE_VIEWPORT);
-    ps.dynamicState.push_back(VK_DYNAMIC_STATE_SCISSOR);
+    ps.dyState.states.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+    ps.dyState.states.push_back(VK_DYNAMIC_STATE_SCISSOR);
 
     // Msaa
     //ps.dynamicState.push_back(VK_DYNAMIC_STATE_RASTERIZATION_SAMPLES_EXT);
@@ -60,8 +86,8 @@ PipelineState PipelineManager::MakePipelineState(const Mesh* mesh, const Materia
         idx++;
     }
 
-    ps.renderPass = renderPass->GetHandle();
-    ps.subpassIndex = subPassIdx;
+    ps.rpState.renderPass = renderPass->GetHandle();
+    ps.rpState.subPass = subPassIdx;
         
     return std::move(ps);
 }
@@ -69,7 +95,36 @@ PipelineState PipelineManager::MakePipelineState(const Mesh* mesh, const Materia
 
 GraphicPipeline* PipelineManager::Request(const Mesh* mesh, const Material* material, const RenderPass* renderPass, size_t subPassIdx)
 {
-    return nullptr;
+    bool sameDevice = mesh->GetDevice() == material->GetShaderProgram()->GetDevice() &&
+                     mesh->GetDevice() == renderPass->GetDevice();
+    assert(sameDevice);
+    PipelineState ps = MakePipelineState(mesh, material, renderPass, subPassIdx);
+    size_t hash = PipelineStateHasher<PipelineState>{}(ps);
+    auto pos = s_GraphicPipelines.find(hash);
+    if (pos == s_GraphicPipelines.end())
+    {    
+        pos = s_GraphicPipelines.insert(std::make_pair(hash, std::make_unique<GraphicPipeline>(s_pDevice, std::move(ps)))).first;
+        s_PipelineHashes.insert(std::make_pair(pos->second.get(), hash));
+    }
+    
+    s_RefrenceCounter[hash]++;
+
+    return pos->second.get();
+}
+
+void PipelineManager::Release(GraphicPipeline* pipeline)
+{
+    auto hash_itr = s_PipelineHashes.find(pipeline);
+    if (hash_itr == s_PipelineHashes.end())
+        return;
+    
+    s_RefrenceCounter[hash_itr->second]--;
+    
+    if (s_RefrenceCounter[hash_itr->second] == 0)
+    {
+        s_GraphicPipelines.erase(hash_itr->second);
+        s_PipelineHashes.erase(hash_itr->first);
+    }
 }
 
 VkPipelineColorBlendAttachmentState PipelineManager::_get_default_blend_state()

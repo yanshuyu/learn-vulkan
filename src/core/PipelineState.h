@@ -53,10 +53,22 @@ struct BlendState
    std::vector<VkPipelineColorBlendAttachmentState> attachmentBlendStates{};
 };
 
+struct DynamicState
+{
+    std::vector<VkDynamicState> states{};
+};
+
+
 struct ShaderStageState
 {
     std::vector<VkPipelineShaderStageCreateInfo> stageInfo{};
     VkPipelineLayout resourceLayout{VK_NULL_HANDLE};
+};
+
+struct RenderPassState
+{
+    VkRenderPass renderPass{VK_NULL_HANDLE};
+    uint32_t subPass{0};
 };
 
 
@@ -69,10 +81,9 @@ struct PipelineState
     MultiSampleState msaaState{};
     DepthStencilState dsState{};
     BlendState fbState{};
+    DynamicState dyState{};
     ShaderStageState shaderState{};
-    std::vector<VkDynamicState> dynamicState{};
-    VkRenderPass renderPass{VK_NULL_HANDLE};
-    uint32_t subpassIndex{0};
+    RenderPassState rpState;
 
     PipelineState() = default;
     PipelineState(const PipelineState& other);

@@ -103,6 +103,8 @@ public:
     const VkBuffer* GetAttributeBindingHandls() const { return _attrBindingHandls.data(); }
 
     VkFormat GetAttributeFormat(VertexAttribute attr) const;
-    VkIndexType GetIndexType() const { return VK_INDEX_TYPE_UINT32; }   
+    VkIndexType GetIndexType() const { return VK_INDEX_TYPE_UINT32; }
+
+    Device* GetDevice() const { return _pDevice; }   
 };
 

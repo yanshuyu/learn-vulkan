@@ -35,15 +35,15 @@ PipelineState& PipelineState::operator = (const PipelineState& other)
     fbState.attachmentBlendStates.resize(other.fbState.attachmentBlendStates.size());
     std::copy(other.fbState.attachmentBlendStates.cbegin(), other.fbState.attachmentBlendStates.cend(), fbState.attachmentBlendStates.begin());
     // dynamic state
-    dynamicState.resize(other.dynamicState.size());
-    std::copy(other.dynamicState.cbegin(), other.dynamicState.cend(), dynamicState.begin());
+    dyState.states.resize(other.dyState.states.size());
+    std::copy(other.dyState.states.cbegin(), other.dyState.states.cend(), dyState.states.begin());
     // shader stage
     shaderState.resourceLayout = other.shaderState.resourceLayout;
     shaderState.stageInfo.resize(other.shaderState.stageInfo.size());
     std::copy(other.shaderState.stageInfo.cbegin(), other.shaderState.stageInfo.cend(), shaderState.stageInfo.begin());
     // render pass
-    renderPass = other.renderPass;
-    subpassIndex = other.subpassIndex;
+    rpState.renderPass = other.rpState.renderPass;
+    rpState.subPass = other.rpState.subPass;
 
     return *this;
 }
@@ -68,13 +68,13 @@ PipelineState& PipelineState::operator = (PipelineState&& other)
     // blend
     fbState.attachmentBlendStates.swap(other.fbState.attachmentBlendStates);
     // dynamic state
-    dynamicState.swap(other.dynamicState);
+    dyState.states.swap(other.dyState.states);
     // shader stage
     shaderState.resourceLayout = other.shaderState.resourceLayout;
     shaderState.stageInfo.swap(other.shaderState.stageInfo);
     // render pass
-    renderPass = other.renderPass;
-    subpassIndex = other.subpassIndex;
+    rpState.renderPass = other.rpState.renderPass;
+    rpState.subPass = other.rpState.subPass;
 
     return *this;    
 }

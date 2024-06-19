@@ -90,8 +90,8 @@ VkResult GraphicPipeline::_create()
 
     // dynamic states
     VkPipelineDynamicStateCreateInfo dyStateInfo{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
-    dyStateInfo.dynamicStateCount = m_PipelineState.dynamicState.size();
-    dyStateInfo.pDynamicStates = m_PipelineState.dynamicState.data();
+    dyStateInfo.dynamicStateCount = m_PipelineState.dyState.states.size();
+    dyStateInfo.pDynamicStates = m_PipelineState.dyState.states.data();
 
     // fix function stages
     VkGraphicsPipelineCreateInfo pipeCreateInfo{VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -112,8 +112,8 @@ VkResult GraphicPipeline::_create()
     // pipeline access shader resource
     pipeCreateInfo.layout = m_PipelineState.shaderState.resourceLayout;
     // compatible render pass
-    pipeCreateInfo.renderPass = m_PipelineState.renderPass;
-    pipeCreateInfo.subpass = m_PipelineState.subpassIndex;
+    pipeCreateInfo.renderPass = m_PipelineState.rpState.renderPass;
+    pipeCreateInfo.subpass = m_PipelineState.rpState.subPass;
     //other
     pipeCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
     pipeCreateInfo.basePipelineIndex = 0;

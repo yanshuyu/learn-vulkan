@@ -5,6 +5,7 @@
 #include"rendering\Window.h"
 #include"rendering\AssetsManager.h"
 #include"rendering\DescriptorSetManager.h"
+#include"rendering\PipelineManager.h"
 
 
 Application::Application(const AppDesc& appDesc)
@@ -126,6 +127,7 @@ bool Application::Prepare(Window* window)
 
     AssetsManager::Initailize(m_pDevice.get());
     DescriptorSetManager::Initailize(m_pDevice.get());
+    PipelineManager::Initailize(m_pDevice.get());
 
     // concrete application will prepare it's resource here...
     return Setup();
@@ -140,6 +142,7 @@ void Application::Finish()
     // concrete application must relase all device's child resource here ...
     Release();
 
+    PipelineManager::DeInitailize();
     DescriptorSetManager::DeInitailize();
     AssetsManager::DeInitailize();
 

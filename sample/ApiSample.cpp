@@ -447,9 +447,8 @@ void ApiSample::_set_up_quad()
     // triangle pipeline
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
-    _quadPipeline.reset(
-                        new GraphicPipeline(m_pDevice.get(), PipelineManager::MakePipelineState(_quad.get(), _quad_mat.get(), _renderPass.get()))
-                        );
+    _quadPipeline = PipelineManager::Request(_quad.get(), _quad_mat.get(), _renderPass.get());
+
     //_quadPipeline->VSSetViewport({0.f, h, w, -h});
    // _quadPipeline->VSSetScissor({0.f, 0.f, w, h});
    //_quadPipeline->FBDisableBlend(0);
@@ -484,7 +483,7 @@ void ApiSample::_clean_up_quad()
 {
     _quad_mat = nullptr;
     _vkLogoTex->Release();
-    _quadPipeline->Release();
+   PipelineManager::Release(_quadPipeline);
     _quad->Release();
     _quadInstanceData->Release();
 }
@@ -635,8 +634,7 @@ void ApiSample::_set_up_sky_box()
 
     float w = m_window->GetDesc().windowWidth;
     float h = m_window->GetDesc().windowHeight;
-    _skyboxPipeline.reset(new GraphicPipeline(m_pDevice.get(), PipelineManager::MakePipelineState(_cube.get(), _skyboxMat.get(), _renderPass.get())));
-    //_skyboxPipeline->VSSetViewport({0.f, h, w, -h});
+    _skyboxPipeline = PipelineManager::Request(_cube.get(), _skyboxMat.get(), _renderPass.get());
     //_skyboxPipeline->VSSetScissor({0.f, 0.f, w, h});
     //_skyboxPipeline->RSSetCullFace(VK_CULL_MODE_FRONT_BIT);
     //_skyboxPipeline->RSSetFrontFaceOrder(VK_FRONT_FACE_CLOCKWISE);
@@ -669,7 +667,7 @@ void ApiSample::_set_up_sky_box()
 void ApiSample::_clean_up_sky_box()
 {
     _skyboxMat = nullptr;
-    _skyboxPipeline->Release();
+    PipelineManager::Release(_skyboxPipeline);
     _skyboxInstanceData->Release();
     _skyboxTex->Release();
     _cube->Release();

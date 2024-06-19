@@ -43,7 +43,7 @@ private:
     // quad
     std::unique_ptr<Mesh> _quad{};
     ShaderProgram* _vertColorProgram{nullptr};
-    std::unique_ptr<GraphicPipeline> _quadPipeline{};
+    GraphicPipeline* _quadPipeline{};
     //VkDescriptorSet _quadSet{VK_NULL_HANDLE};
     std::unique_ptr<Material> _quad_mat{};
     std::unique_ptr<Texture2D> _vkLogoTex{};
@@ -53,7 +53,7 @@ private:
     // skybox
     std::unique_ptr<Mesh> _cube{};
     ShaderProgram* _skyboxProgram{nullptr};
-    std::unique_ptr<GraphicPipeline> _skyboxPipeline{};
+    GraphicPipeline* _skyboxPipeline{};
     //VkDescriptorSet _skyboxSet{VK_NULL_HANDLE};
     std::unique_ptr<Material> _skyboxMat{};
     std::unique_ptr<TextureCube> _skyboxTex{};
