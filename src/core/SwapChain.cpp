@@ -4,7 +4,6 @@
 #include<numeric>
 #include"core\Device.h"
 #include"core\CoreUtils.h"
-#include"core\QueueFamilyIndices.h"
 #include"rendering\Window.h"
 
 bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& desc)
@@ -100,20 +99,20 @@ bool SwapChain::Create(Device* pDevice, Window* pWindow, const SwapChainDesc& de
     swapChainCrateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     swapChainCrateInfo.imageArrayLayers = 1;
 
-    QueueFamilyIndices deviceQueFamIndices(pDevice->GetHardwardHandle());
-    uint32_t queueFamIdxs[2] = { deviceQueFamIndices.GrapicQueueFamilyIndex(), deviceQueFamIndices.PresentQueueFamilyIndex(pWindow->GetVulkanSurface())};
-    if ( queueFamIdxs[0] != queueFamIdxs[1])
-    {
-        swapChainCrateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT; // share between different queues, only one queue own the swap chain at a time
-        swapChainCrateInfo.queueFamilyIndexCount = 2;
-        swapChainCrateInfo.pQueueFamilyIndices = queueFamIdxs;
-    }
-    else 
-    {
+    // QueueFamilyIndices deviceQueFamIndices(pDevice->GetHardwardHandle());
+    // uint32_t queueFamIdxs[2] = { deviceQueFamIndices.GrapicQueueFamilyIndex(), deviceQueFamIndices.PresentQueueFamilyIndex(pWindow->GetVulkanSurface())};
+    // if ( queueFamIdxs[0] != queueFamIdxs[1])
+    // {
+    //     swapChainCrateInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT; // share between different queues, only one queue own the swap chain at a time
+    //     swapChainCrateInfo.queueFamilyIndexCount = 2;
+    //     swapChainCrateInfo.pQueueFamilyIndices = queueFamIdxs;
+    // }
+    // else 
+    // {
         swapChainCrateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; // swap chain owned by one queue only
         swapChainCrateInfo.queueFamilyIndexCount = 0;
         swapChainCrateInfo.pQueueFamilyIndices = nullptr;
-    }
+    //}
     swapChainCrateInfo.presentMode = presentMode;
     swapChainCrateInfo.surface = pWindow->GetVulkanSurface();
     swapChainCrateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;

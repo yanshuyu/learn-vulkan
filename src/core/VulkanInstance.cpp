@@ -1,5 +1,5 @@
 #include"core\VulkanInstance.h"
-#include"core\QueueFamilyIndices.h"
+
 
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL __DebugMessengerCallback(VkDebugUtilsMessageSeverityFlagBitsEXT msgSeverity,
