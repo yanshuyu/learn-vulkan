@@ -195,7 +195,7 @@ bool VulkanInstance::Initailize()
 }
 
 
-VkPhysicalDevice VulkanInstance::RequestPhysicalDevice(VkQueueFlags queueOperation, VkSurfaceKHR presentSurface)
+VkPhysicalDevice VulkanInstance::RequestPhysicalDevice(const QueueType* enableQueues, size_t numQueue, VkSurfaceKHR presentSurface) const
 {
     // enumerate physical devices
     uint32_t physicalDeviceCnt = 0;
@@ -215,34 +215,50 @@ VkPhysicalDevice VulkanInstance::RequestPhysicalDevice(VkQueueFlags queueOperati
     for (size_t i=0; i<physicalDeviceCnt; i++ )
     {
         vkGetPhysicalDeviceProperties(physicalDevices[i], &physicalDeviceProps[i]);
-        LOGI("ID\tDevice Name\t\t\tDevice Type\t\t\tDriver Version\n");
+        LOGI("ID\tDevice Name\t\t\tDevice Type\t\t\tDriver Version");
         LOGI("{}\t{}\t{}\t{}",
              (void*)physicalDevices[i],
              physicalDeviceProps[i].deviceName,
              s_PhysicalDeviceTypeNames[(size_t)physicalDeviceProps[i].deviceType],
              physicalDeviceProps[i].driverVersion);
+
+        uint32_t queueFamCnt{0};
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamCnt, nullptr);
+        std::vector<VkQueueFamilyProperties> queueFamProperties(queueFamCnt);
+        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamCnt, queueFamProperties.data());
+        for (size_t i = 0; i < queueFamCnt; i++)
+        {
+            LOGI("QueueFamily{} flags: {} queue: {}", i, vkutils_queue_flags_str(queueFamProperties[i].queueFlags), queueFamProperties[i].queueCount);
+        }
+        
     }
 
     // pick suitable physcial device    
     size_t suitablePhyDeviceIndex = -1;
-    QueueFamilyIndices suitablePhyDeviceQueueFamilyIndices;
     for (size_t i = 0; i < physicalDeviceCnt; i++)
     {
-        suitablePhyDeviceQueueFamilyIndices.Query(physicalDevices[i]);
-        if ((suitablePhyDeviceQueueFamilyIndices.CombindQueueFamilyFlags() & queueOperation) == queueOperation)
+        int satisfyQueueCnt{0};
+        for (size_t j = 0; j < numQueue; j++)
         {
-            if (presentSurface != VK_NULL_HANDLE)
-            {
-                if (suitablePhyDeviceQueueFamilyIndices.IsPresentSupported(presentSurface))
-                    suitablePhyDeviceIndex = i;
+            int queueFamIdx = vkutils_queue_type_family_index(physicalDevices[i], enableQueues[j]);
+            if ( queueFamIdx != -1)
+            {   
+                if (enableQueues[j] == QueueType::Main && presentSurface != VK_NULL_HANDLE) // make sure main queue support present
+                {
+                    VkBool32 result{false};
+                    vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevices[i], queueFamIdx, presentSurface,  &result);
+                    if (result)
+                        satisfyQueueCnt++;
+                }
+                else 
+                    satisfyQueueCnt++;
             }
-            else
-            {
-                suitablePhyDeviceIndex = i;
-            }
-
-            if (suitablePhyDeviceIndex != -1)
-                break;
+        }
+    
+        if (satisfyQueueCnt == numQueue)
+        {
+            suitablePhyDeviceIndex = i;
+            break;
         }
     }
     

@@ -91,7 +91,7 @@ void Image::SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer)
         SetData(rawData, dataSz, dataSz * (layer-1));
         UnMap();
         VkImageSubresourceRange imgLayerRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, layer, 1};
-        CommandBuffer* cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetGrapicQueue());
+        CommandBuffer* cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetMainQueue());
         CommandBuffer::TransitionLayout(cmd, m_vkImage, imgLayerRange, VK_IMAGE_LAYOUT_PREINITIALIZED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         _pDevice->DestroyCommandBuffer(cmd);
     }
@@ -105,7 +105,7 @@ void Image::SetPixels(const uint8_t* rawData, size_t dataSz, size_t layer)
 
         // transffer image at current layer's 0 mip level layout for buffer image copy
         VkImageSubresourceRange imgMipLevelRange{VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, layer, 1};
-        CommandBuffer* cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetGrapicQueue());
+        CommandBuffer* cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetMainQueue());
         cmd->Begin();
         cmd->TransitionLayout(m_vkImage, imgMipLevelRange, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 

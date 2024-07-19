@@ -21,8 +21,15 @@ int main(int, char**)
     WindowDesc wndDesc{};
     AppDesc appDesc{};
 
-    std::vector<const char*> deviceExtNames{};
-    deviceExtNames.push_back(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+    const char *deviceExtNames[] = {
+        VK_KHR_MAINTENANCE1_EXTENSION_NAME,
+    };
+
+    const QueueType queueTypes[] = {
+        QueueType::Main,
+        QueueType::Compute,
+        QueueType::Transfer,
+    };
 
     wndDesc.name = "Vulkan Api Sample";
     wndDesc.resizeble = false;
@@ -30,7 +37,8 @@ int main(int, char**)
     wndDesc.windowHeight = 720;
 
     appDesc.debugEnabled = true;
-    appDesc.enableQueueOperation = VK_QUEUE_GRAPHICS_BIT;
+    appDesc.enabledQueueTypes = queueTypes;
+    appDesc.enabledQueueTypeCount = 3;
     appDesc.swapChainColorFormat = VK_FORMAT_B8G8R8A8_UNORM;
     appDesc.swapChainColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     appDesc.swapChainTrippleBufferEnabled = true;
@@ -38,8 +46,9 @@ int main(int, char**)
     appDesc.backBufferClearColor[1] = 0;
     appDesc.backBufferClearColor[2] = 0;
     appDesc.backBufferClearColor[3] = 1;
-    appDesc.enabledDeviceExtendsionNames = deviceExtNames.data();
-    appDesc.enabledDeviceExtendsionCount = deviceExtNames.size();
+    appDesc.enabledDeviceExtendsionNames = deviceExtNames;
+    appDesc.enabledDeviceExtendsionCount = 1;
+    appDesc.enabledDeviceFeatureCount = 0;
     
     try
     {

@@ -37,6 +37,13 @@ ClassName operator = (ClassName&&) = delete;
 #define LOGD(...) spdlog::debug(__VA_ARGS__);
 
 // Types
+enum QueueType
+{
+    Main,  // grapic | compute | transfer
+    Compute, // compute | transfer 
+    Transfer, // transfer 
+    MaxQueueType,
+};
 
 enum DeviceFeatures
 {
@@ -134,7 +141,14 @@ enum SetIndices
 
 
 
-// Functions
+int vkutils_queue_type_family_index(VkPhysicalDevice phyDevice, QueueType queue, VkQueueFamilyProperties* queueProperties = nullptr);
+
+const char* vkutils_queue_type_str(QueueType queue);
+
+const char* vkutils_device_feature_str(DeviceFeatures feature);
+
+VkPhysicalDeviceFeatures vkutils_populate_physical_device_feature(const DeviceFeatures* fetrues, size_t featureCnt);
+
 inline bool vkutils_is_depth_and_stencil_format(VkFormat fmt)
 {
     return fmt == VK_FORMAT_D16_UNORM_S8_UINT  // DS
@@ -238,7 +252,7 @@ VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt);
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& arr, const char* name, bool enabled);
 
 
-size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz);
+const char* vkutils_queue_flags_str(VkQueueFlags flags);
 
 bool vkutils_fetch_device_feature(const VkPhysicalDeviceFeatures& featureProps, DeviceFeatures feature);
 

@@ -3,6 +3,98 @@
 #include<stb\stb_image.h>
 #include<fstream>
 
+int vkutils_queue_type_family_index(VkPhysicalDevice phyDevice, QueueType queue, VkQueueFamilyProperties* queueProperties)
+{
+    uint32_t deviceQueueCnt{0};
+    std::vector<VkQueueFamilyProperties> deviceQueueProperties{};
+    vkGetPhysicalDeviceQueueFamilyProperties(phyDevice, &deviceQueueCnt, nullptr);
+    deviceQueueProperties.resize(deviceQueueCnt);
+    vkGetPhysicalDeviceQueueFamilyProperties(phyDevice, &deviceQueueCnt, deviceQueueProperties.data());
+    VkQueueFlags queueIncludeBits[] = {
+        VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
+        VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
+        VK_QUEUE_TRANSFER_BIT,
+    };
+
+    VkQueueFlags queueExcludeBits[] = {
+        0,
+        VK_QUEUE_GRAPHICS_BIT,
+        VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT,
+    };
+
+
+    for (int i = 0; i < deviceQueueCnt; i++)
+    {
+        if (((deviceQueueProperties[i].queueFlags & queueIncludeBits[queue]) == queueIncludeBits[queue])
+            && ((deviceQueueProperties[i].queueFlags & queueExcludeBits[queue]) == 0))
+        {   
+            if (queueProperties)
+                *queueProperties = deviceQueueProperties[i]; 
+            return i;
+        }
+    }
+
+    return -1;
+}
+
+const char* vkutils_queue_type_str(QueueType queue)
+{
+    static char* type_queue_str[] = {
+        "Main",
+        "Compute",
+        "Transfer",
+        "MaxEnum",
+    };
+
+    return type_queue_str[queue];
+}
+
+const char* vkutils_device_feature_str(DeviceFeatures feature)
+{
+    static char* feature_strs[] = {
+        "Feature Begin",
+        "geometry shader",
+        "tessellation shader",
+        "sampler anisotropy",
+        "texture compression ETC2",
+        "Feature End",
+    };
+
+    return feature_strs[feature];
+}
+
+
+
+VkPhysicalDeviceFeatures vkutils_populate_physical_device_feature(const DeviceFeatures* fetrues, size_t featureCnt)
+{
+    VkPhysicalDeviceFeatures phyDeviceFeatures{};
+    for (size_t i = 0; i < featureCnt; i++)
+    {
+        DeviceFeatures feature = fetrues[i];
+        switch (feature)
+        {
+        case DeviceFeatures::geometryShader:
+            phyDeviceFeatures.geometryShader = VK_TRUE;
+            break;
+        case DeviceFeatures::tessellationShader:
+            phyDeviceFeatures.tessellationShader = VK_TRUE;
+            break;
+        case DeviceFeatures::samplerAnisotropy:
+            phyDeviceFeatures.samplerAnisotropy = VK_TRUE;
+            break;
+        case DeviceFeatures::textureCompressionETC2:
+            phyDeviceFeatures.textureCompressionETC2 = VK_TRUE;
+            break;
+
+        default:
+            break;
+        }
+    }
+
+    return phyDeviceFeatures;
+}
+
+
 VkImageAspectFlags vkutils_get_image_input_asepect_mask(VkFormat fmt)
 {
     if (vkutils_is_color_format(fmt))
@@ -134,10 +226,10 @@ void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string> &ar
     }
 }
 
-size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz)
+const char* vkutils_queue_flags_str(VkQueueFlags flags)
 {
-
-    std::memset(strbuf, NULL, bufSz);
+    constexpr int str_buf_sz = 256;
+    static char str_buf[str_buf_sz]{};
 
     const VkQueueFlagBits allFlagBits[] = {
         VK_QUEUE_GRAPHICS_BIT,
@@ -159,24 +251,25 @@ size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz)
         "OF",
     };
 
+    memset(str_buf, NULL, str_buf_sz);
     size_t pos = 0;
     for (size_t i = 0; i < 7; i++)
     {
-        if (pos >= bufSz)
+        if (pos >= str_buf_sz)
             break;
 
         if (flags & allFlagBits[i])
         {
             if (pos > 0)
             {
-                strbuf[pos] = '|';
+                str_buf[pos] = '|';
                 pos++;
             }
 
             const char* str = flagBitStrs[i];
-            while (*str != NULL && pos < bufSz)
+            while (*str != NULL && pos < str_buf_sz)
             {
-                strbuf[pos] = *str;
+                str_buf[pos] = *str;
                 str++;
                 pos++;
             }
@@ -184,7 +277,12 @@ size_t vkutils_queue_flags_str(VkQueueFlags flags, char* strbuf, size_t bufSz)
         }
     }
     
-    return pos;
+    if (pos < str_buf_sz)
+        pos++;
+    
+    str_buf[pos] = NULL;
+
+    return str_buf;
 }
 
 

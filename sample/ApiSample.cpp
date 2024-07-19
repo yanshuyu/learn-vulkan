@@ -43,8 +43,8 @@ bool ApiSample::Setup()
         return false;
     }
 
-    m_GraphicQueue = m_pDevice->GetGrapicQueue();
-    m_PresentQueue = m_pDevice->GetPresentQueue(m_window);
+    m_GraphicQueue = m_pDevice->GetMainQueue();
+    m_PresentQueue = m_pDevice->GetMainQueue();
     assert(VKHANDLE_IS_NOT_NULL(m_GraphicQueue) && VKHANDLE_IS_NOT_NULL(m_PresentQueue));
 
     m_pCmdBuffer = m_pDevice->CreateCommandBuffer(m_GraphicQueue);

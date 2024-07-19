@@ -64,43 +64,32 @@ bool Application::Prepare(Window* window)
     }
 
     // Find a physical gpu which support expected operation
-    VkPhysicalDevice suitableGpu = m_pVulkanInstance->RequestPhysicalDevice(m_appDesc.enableQueueOperation, window ? window->GetVulkanSurface() : VK_NULL_HANDLE);
+    VkPhysicalDevice suitableGpu = m_pVulkanInstance->RequestPhysicalDevice(m_appDesc.enabledQueueTypes, m_appDesc.enabledQueueTypeCount, window ? window->GetVulkanSurface() : VK_NULL_HANDLE);
     if (VKHANDLE_IS_NULL(suitableGpu))
     {
         LOGE("-->App Prepare: No avalible device!");
         return false;
     }
-    else
-    {
-        LOGI("-->App Prepare: Avalible device({})", (void*)suitableGpu);
-        LOGI("\tQueueFamilyIndex\t|\tQueueOperation\t|\tQueueCount\n");
-        QueueFamilyIndices queueFamIndices(suitableGpu);
-            char ss[64]{};
-        for (size_t i = 0; i < queueFamIndices.QueueFamilyCount(); i++)
-        {
-            VkQueueFamilyProperties prop = queueFamIndices.QueueFamilyProperties(i);
-            vkutils_queue_flags_str(prop.queueFlags, ss, 64);
-            LOGI("\t{}\t{}\t{}", i, ss, prop.queueCount);
-        }
-    }
+
 
     // Create vulkan logical Device
-    m_pDevice = std::make_unique<Device>();
-    if (window)
-        m_pDevice->SetDeviceExtendsionHint(VK_KHR_SWAPCHAIN_EXTENSION_NAME, true);
-    
+    std::vector<const char*> deviceExtentsions{};
+    deviceExtentsions.reserve(m_appDesc.enabledDeviceExtendsionCount + 1);
     for (size_t i = 0; i < m_appDesc.enabledDeviceExtendsionCount; i++)
-    {
-        m_pDevice->SetDeviceExtendsionHint(m_appDesc.enabledDeviceExtendsionNames[i], true);
-    }
+        deviceExtentsions.push_back(m_appDesc.enabledDeviceExtendsionNames[i]);
+    if (window)
+       deviceExtentsions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     
-    for (size_t j = 0; j < m_appDesc.enabledDeviceFeatureCount; j++)
-    {
-        m_pDevice->SetDeviceFeatureHint(m_appDesc.enabledDeviceFeatures[j], true);
-    }
-    
+    DeviceCreation dc{};
+    dc.enableExtendsionCnt = deviceExtentsions.size();
+    dc.enableExtendsions = deviceExtentsions.data();
+    dc.enableFeatureCnt = m_appDesc.enabledDeviceFeatureCount;
+    dc.enableFeatures = m_appDesc.enabledDeviceFeatures;
+    dc.enableQueueCnt = m_appDesc.enabledQueueTypeCount;
+    dc.enableQueue = m_appDesc.enabledQueueTypes; 
 
-    if (!m_pDevice->Initailze(suitableGpu, m_pVulkanInstance->GetApiVersion()))
+    m_pDevice = std::make_unique<Device>();
+    if (!m_pDevice->Create(suitableGpu, m_pVulkanInstance->GetApiVersion(),dc))
     {
        LOGE("-->App Prepare: Failed to init device!");
        return false; 
@@ -137,7 +126,9 @@ bool Application::Prepare(Window* window)
 void Application::Finish()
 {
     // makre sure all cmd are finish
-    m_pDevice->WaitIdle();
+    
+    if (m_pDevice)
+        m_pDevice->WaitIdle();
 
     // concrete application must relase all device's child resource here ...
     Release();
@@ -146,17 +137,20 @@ void Application::Finish()
     DescriptorSetManager::DeInitailize();
     AssetsManager::DeInitailize();
 
-    m_pSwapChain->Release();
+    if (m_pSwapChain)
+        m_pSwapChain->Release();
 
     // it's safer to destory device firstly, becuse device's render cmd will present to window surface
-    m_pDevice->Release();
+    if (m_pDevice)
+        m_pDevice->Release();
 
     // make sure destory all instance's child resource before destoy instance
     if (m_window)
         m_window->DestroyVulkanSurface(m_pVulkanInstance->GetHandle());
 
     // finally destroy instance
-    m_pVulkanInstance->Release();
+    if(m_pVulkanInstance)
+        m_pVulkanInstance->Release();
 
     m_pDevice.reset(nullptr);
     m_pSwapChain.reset(nullptr);

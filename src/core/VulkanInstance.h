@@ -37,7 +37,7 @@ public:
 
     VkInstance GetHandle() const { return m_vkInstance; }
     
-    VkPhysicalDevice RequestPhysicalDevice(VkQueueFlags queueOperation, VkSurfaceKHR presentSurface);
+    VkPhysicalDevice RequestPhysicalDevice(const QueueType* enableQueues, size_t numQueue, VkSurfaceKHR presentSurface) const;
 
     void Release();
 

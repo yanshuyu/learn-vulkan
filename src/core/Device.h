@@ -5,7 +5,6 @@
 #include<utility>
 #include"core\CoreUtils.h"
 #include"rendering\Window.h"
-#include"core\QueueFamilyIndices.h"
 #include"rendering\ObjectPool.h"
 #include"core\CommandBuffer.h"
 #include"core\Buffer.h"
@@ -13,24 +12,35 @@
 #include"core\Fence.h"
 
 
+struct DeviceCreation
+{
+    const char** enableExtendsions;
+    size_t enableExtendsionCnt;
+    const DeviceFeatures* enableFeatures;
+    size_t enableFeatureCnt;
+    const QueueType* enableQueue;
+    size_t enableQueueCnt;
+};
+
+
+
 class Device
 {
 private:
     uint32_t m_vkApiVersion{0};
     VkPhysicalDevice m_vkPhyDevice{VK_NULL_HANDLE};
-    QueueFamilyIndices m_DeviceQueueFamilyIndices{};
     VkPhysicalDeviceProperties m_PhyDeviceProps{};
     VkPhysicalDeviceFeatures m_PhyDeviceFeatures{};
     VkPhysicalDeviceMemoryProperties m_PhyDeviceMemProps{};
     
-    
     std::vector<std::string> m_DeviceExtendsions{};
-    std::vector<DeviceFeatures> m_EnablePhyDeviceFeatures{};
+    std::vector<DeviceFeatures> m_DeviceFeatures{};
 
     VkDevice m_vkDevice{VK_NULL_HANDLE};
-    VkQueue m_DeviceQueues[QueueFamilyIndices::MAX_INDEX]; 
-    VkCommandPool m_DeviceQueueCmdPools[QueueFamilyIndices::MAX_INDEX * 2];
-    //VkCommandBuffer m_DeviceQueueCmdBuffers[QUEUE_FAMILY_MAX_COUNT];
+    VkQueue m_DeviceQueues[QueueType::MaxQueueType];
+    int m_DeviceQueueFamilyIndices[QueueType::MaxQueueType];
+    VkCommandPool m_DeviceQueueCmdPools[QueueType::MaxQueueType * 2];
+
 
 private:
     ObjectPool<CommandBuffer> _CmdBufPool;
@@ -43,11 +53,11 @@ public:
 
     NONE_COPYABLE_NONE_MOVEABLE(Device)
     
-    void SetDeviceFeatureHint(DeviceFeatures feature, bool enabled);
-    void SetDeviceExtendsionHint(const char* extendsionName, bool enabled) { vkutils_toggle_extendsion_or_layer_name_active(m_DeviceExtendsions, extendsionName, enabled); }
-    void ResetAllHints();
+    // void SetDeviceFeatureHint(DeviceFeatures feature, bool enabled);
+    // void SetDeviceExtendsionHint(const char* extendsionName, bool enabled) { vkutils_toggle_extendsion_or_layer_name_active(m_DeviceExtendsions, extendsionName, enabled); }
+    // void ResetAllHints();
 
-    bool Initailze(VkPhysicalDevice phyDevice, uint32_t driverVersion);
+    bool Create(VkPhysicalDevice phyDevice, uint32_t driverVersion, const DeviceCreation& desc);
     bool IsValid() const { return m_vkDevice != VK_NULL_HANDLE; }
     void Release();
     void WaitIdle() const;
@@ -55,15 +65,13 @@ public:
     VkDevice GetHandle() const { return m_vkDevice; }
     VkPhysicalDevice GetHardwardHandle() const { return m_vkPhyDevice; }
 
-    bool SupportGrapic() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]); }
-    bool SupportCompute() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::COMPUTE_INDEX]); }
-    bool SupportTransfer() const { return VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]) || VKHANDLE_IS_NOT_NULL(m_DeviceQueues[QueueFamilyIndices::TRANSFER_INDEX]); } // grapics queue must support transfer
-    bool SupportPrenset(Window* window) const { return VKHANDLE_IS_NOT_NULL(GetPresentQueue(window)); }
-    
-    VkQueue GetGrapicQueue() const { return m_DeviceQueues[QueueFamilyIndices::GRAPICS_INDEX]; }
-    VkQueue GetcomputeQueue() const { return m_DeviceQueues[QueueFamilyIndices::COMPUTE_INDEX]; }
-    VkQueue GetTransferQueue() const { return SupportGrapic() ? GetGrapicQueue() : m_DeviceQueues[QueueFamilyIndices::TRANSFER_INDEX]; }
-    VkQueue GetPresentQueue(const Window* window) const;
+  
+    bool SupportPrenset(Window* window) const;
+    VkQueue GetMainQueue() const { return m_DeviceQueues[QueueType::Main]; }
+    //VkQueue GetComputeQueue() const { return m_DeviceQueues[QueueType::Compute]; }
+    //VkQueue GetTransferQueue() const { return m_DeviceQueues[QueueType::Transfer]; }
+    VkQueue GetQueue(QueueType queue) const { if (queue == QueueType::MaxQueueType) return VK_NULL_HANDLE; return m_DeviceQueues[queue]; }
+
 
     std::vector<VkSurfaceFormatKHR> GetSupportedPresentFormats(Window* window) const;
     std::vector<VkPresentModeKHR> GetSupportedPresentModes(Window* window) const;
@@ -75,8 +83,8 @@ public:
     bool IsFormatFeatureSupport(VkFormat fmt, VkFormatFeatureFlagBits fmtFeature, bool linearTiling) const;
     uint32_t GetDeviceLimit(DeviceLimits limit) const;
 
-    CommandBuffer* CreateCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, false); }
-    CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return CreateCommandBufferImp(queue, true); }
+    CommandBuffer* CreateCommandBuffer(VkQueue queue) { return _create_command_buffer(queue, false); }
+    CommandBuffer* CreateTempraryCommandBuffer(VkQueue queue) { return _create_command_buffer(queue, true); }
     bool DestroyCommandBuffer(CommandBuffer* pCmdBuf);
     
     // Memory Alloc & Free
@@ -97,14 +105,11 @@ public:
 
     uint32_t GetDriverVersion() const { return m_vkApiVersion; }
 private:
-    bool CreateLogicalDevice(VkPhysicalDevice phyDevice);
-    bool CreateCommandPools();
-    //bool CreateCommandBuffers();
-    void QueryDeviceMemoryProperties();
-    //void QueryDeviceSurfaceProperties();
-    QueueFamilyIndices::Key GetQueueKey(VkQueue queue) const;   
-    CommandBuffer* CreateCommandBufferImp(VkQueue queue, bool temprary);
-    bool AllHardWareFeatureSupported(VkPhysicalDevice phyDevice) const;
-    VkPhysicalDeviceFeatures HardwareFeaturesToVkPhysicalDeviceFeatures() const;;
+
+    VkResult _create_command_pools();
+    void _release_command_pools();
+    CommandBuffer* _create_command_buffer(VkQueue queue, bool temprary);
+    QueueType _get_queue_type(VkQueue queue) const;
+
 };
 

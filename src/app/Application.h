@@ -23,7 +23,8 @@ struct AppDesc
     const char** enabledDeviceExtendsionNames;
     size_t enabledDeviceFeatureCount;
     const DeviceFeatures* enabledDeviceFeatures;
-    VkQueueFlags enableQueueOperation;
+    const QueueType* enabledQueueTypes;
+    size_t enabledQueueTypeCount;
     VkFormat swapChainColorFormat;
     VkColorSpaceKHR swapChainColorSpace;
     float backBufferClearColor[4];

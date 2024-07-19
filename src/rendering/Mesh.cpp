@@ -103,7 +103,7 @@ bool Mesh::Apply()
 
     if (!_readWriteEnable)
     {
-        cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetTransferQueue());
+        cmd = _pDevice->CreateTempraryCommandBuffer(_pDevice->GetMainQueue());
         cmd->Begin();
     }
 
