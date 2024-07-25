@@ -13,7 +13,7 @@ bool Image::Create(const ImageDesc &desc)
     createInfo.imageType = vkutils_get_image_type_form_extents(desc.extents);
     createInfo.extent = desc.extents;
     createInfo.arrayLayers = desc.layers;
-    createInfo.samples = vkutils_get_sample_count_flag_bit(desc.sampleCount);
+    createInfo.samples = vkutils_sample_count_to_flag_bit(desc.sampleCount);
     createInfo.mipLevels = desc.linearTiling ? 1 : desc.mipLeves; // linear tiling image force limit to single mipmap for simplity
     createInfo.usage = desc.usageFlags;
     createInfo.tiling = desc.linearTiling ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;

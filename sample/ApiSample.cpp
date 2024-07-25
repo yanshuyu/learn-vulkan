@@ -6,6 +6,7 @@
 #include<core\ShaderProgram.h>
 #include<core\GraphicPipeline.h>
 #include<core\RenderPass.h>
+#include<core\FrameBuffer.h>
 #include"rendering\Window.h"
 #include<rendering\Mesh.h>
 #include<rendering\AssetsManager.h>
@@ -234,11 +235,11 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     clearSettings[1].depthStencil = clearDepthStencil;
 
     VkRenderPassBeginInfo renderPassBegInfo{VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO};
-    renderPassBegInfo.framebuffer = m_SwapChainFrameBuffers[swapChainImageIdx];
     renderPassBegInfo.renderPass = _renderPass->GetHandle();
+    renderPassBegInfo.framebuffer = m_SwapChainFrameBuffers[swapChainImageIdx]->GetHandle();
     renderPassBegInfo.renderArea = renderAera;
-    renderPassBegInfo.clearValueCount = 2;
-    renderPassBegInfo.pClearValues = clearSettings;
+    renderPassBegInfo.clearValueCount = m_SwapChainFrameBuffers[swapChainImageIdx]->GetRenderTargetCount();
+    renderPassBegInfo.pClearValues = m_SwapChainFrameBuffers[swapChainImageIdx]->GetRenderTargetClears();
     vkCmdBeginRenderPass(m_CmdBuffer, &renderPassBegInfo, VK_SUBPASS_CONTENTS_INLINE);
    
     static VkDeviceSize attrBindingZeroOffsets[MaxAttribute] = {0, 0, 0, 0, 0, 0};
@@ -258,7 +259,7 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
     vkCmdSetViewport(m_CmdBuffer, 0, 1, &viewport);
     vkCmdSetScissor(m_CmdBuffer, 0, 1, &scissor);
     //vkCmdSetRasterizationSamplesEXT(m_CmdBuffer, VK_SAMPLE_COUNT_1_BIT);
-
+    
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerFrameData::sPipelineLayout, PerFrame, 1, &_perFrameData->dataSet, 0, nullptr);
     vkCmdBindDescriptorSets(m_CmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, PerCameraData::sPipelineLayout, PerCamera, 1, &_perCameraData->dataSet, 0, nullptr);
         
@@ -343,21 +344,17 @@ bool ApiSample::CreateSwapChainFrameBuffers()
         return false;
     }
 
+    RenderTarget depthRT = RenderTarget(m_DepthBufferView, depthBufferCreateInfo.format, depthBufferCreateInfo.extent.width, depthBufferCreateInfo.extent.height);
     // frame buffer
-    m_SwapChainFrameBuffers.resize(m_pSwapChain->GetBufferCount(), VK_NULL_HANDLE);
-    for (size_t i = 0; i < m_SwapChainFrameBuffers.size(); i++)
+    m_SwapChainFrameBuffers.reserve(m_pSwapChain->GetBufferCount());
+    for (size_t i = 0; i < m_pSwapChain->GetBufferCount(); i++)
     {
-        VkFramebufferCreateInfo fbCreateInfo{VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO};
-        VkImageView fbAttachments[2]{m_pSwapChain->GetBufferView(i), m_DepthBufferView};
-        fbCreateInfo.renderPass = _renderPass->GetHandle();
-        fbCreateInfo.width = m_pSwapChain->GetBufferSize().width;
-        fbCreateInfo.height = m_pSwapChain->GetBufferSize().height;
-        fbCreateInfo.layers = 1;
-        fbCreateInfo.attachmentCount = 2;
-        fbCreateInfo.pAttachments = fbAttachments;
-        if (VKCALL_FAILED(vkCreateFramebuffer(m_pDevice->GetHandle(), &fbCreateInfo, nullptr, &m_SwapChainFrameBuffers[i])))
-        {   
-            LOGE("-->ApiSample: failed to create frame buffer at idx: {}!", i);
+        m_SwapChainFrameBuffers.emplace_back(new FrameBuffer(m_pSwapChain->GetBufferSize().width, m_pSwapChain->GetBufferSize().height));
+        RenderTarget colorRT = RenderTarget(m_pSwapChain->GetBufferView(i), m_pSwapChain->GetBufferFormat().format, m_pSwapChain->GetBufferSize().width, m_pSwapChain->GetBufferSize().height);
+        m_SwapChainFrameBuffers[i]->SetRenderTarget(colorRT, depthRT);
+        if(!m_SwapChainFrameBuffers[i]->Create(_renderPass.get()))
+        {    
+            LOGE("Create swap chian buffer({})'s frame buffer error", i); 
             return false;
         }
     }
@@ -367,14 +364,7 @@ bool ApiSample::CreateSwapChainFrameBuffers()
 
 void ApiSample::DestroySwapChainFrameBuffers()
 {
-    for (size_t i = 0; i < m_SwapChainFrameBuffers.size(); i++)
-    {
-        if (VKHANDLE_IS_NOT_NULL(m_SwapChainFrameBuffers[i]))
-        {
-            vkDestroyFramebuffer(m_pDevice->GetHandle(), m_SwapChainFrameBuffers[i], nullptr);
-            m_SwapChainFrameBuffers[i] = VK_NULL_HANDLE;
-        }
-    }
+
     m_SwapChainFrameBuffers.clear();
 
     if ( VKHANDLE_IS_NOT_NULL(m_DepthBufferView))

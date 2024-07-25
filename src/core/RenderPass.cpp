@@ -25,7 +25,7 @@ void RenderPass::AddColorAttachment(VkFormat fmt,
     VkAttachmentDescription2 desc{VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2};
     desc.flags = 0;
     desc.format = fmt;
-    desc.samples = vkutils_get_sample_count_flag_bit(sampleCnt);
+    desc.samples = vkutils_sample_count_to_flag_bit(sampleCnt);
     desc.loadOp = loadOp;
     desc.storeOp = storeOp;
     desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -49,7 +49,7 @@ void RenderPass::AddDepthStencilAttachment(VkFormat fmt,
     VkAttachmentDescription2 desc{VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2};
     desc.flags = 0;
     desc.format = fmt;
-    desc.samples = vkutils_get_sample_count_flag_bit(sampleCnt);
+    desc.samples = vkutils_sample_count_to_flag_bit(sampleCnt);
     desc.loadOp = depthLoadOp;
     desc.storeOp = depthStoreOp;
     desc.stencilLoadOp = stencilLoadOp;

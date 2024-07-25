@@ -58,7 +58,7 @@ public:
     //VkSubpassDescription2 GetSubPassDesc(size_t idx) const {return m_subpassDescs[idx]; }
     size_t GetSubPassOutputColorAttachmentCount(size_t idx) const {return m_sp_o_col_att_refs[idx].size(); }
     size_t GetSubPassInputAttachmentCount(size_t idx) const { return m_sp_i_att_refs[idx].size(); }
-
+    const VkAttachmentDescription2& GetAttachment(size_t idx) const { return m_attachmentDescs[idx]; }
     VkRenderPass GetHandle() const { return m_vkRenderPass; }
 
 private:

@@ -245,9 +245,13 @@ VkImageType vkutils_get_image_type_form_extents(VkExtent3D extents);
 
 uint32_t vkutils_get_mip_level_count_from_extents(VkExtent3D extents);
 
+VkImageUsageFlags vkutils_get_render_texture_usage_flags(VkFormat fmt, bool sampled = true, bool persistable = false);
+
 VkImageViewType vkutils_get_image_view_type(VkExtent3D extents, size_t layers = 1, VkImageCreateFlags flags = 0);
 
-VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt);
+VkSampleCountFlagBits vkutils_sample_count_to_flag_bit(uint32_t sampleCnt);
+
+size_t vkutils_sample_flag_bit_to_count(VkSampleCountFlagBits sample);
 
 void vkutils_toggle_extendsion_or_layer_name_active(std::vector<std::string>& arr, const char* name, bool enabled);
 

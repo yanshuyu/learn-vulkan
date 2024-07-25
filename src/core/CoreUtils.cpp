@@ -166,6 +166,24 @@ uint32_t vkutils_get_mip_level_count_from_extents(VkExtent3D extents)
 }
 
 
+VkImageUsageFlags vkutils_get_render_texture_usage_flags(VkFormat fmt, bool sampled, bool persistable)
+{
+    VkImageUsageFlags flags{0};
+    if (vkutils_is_depth_or_stencil_format(fmt))
+        flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    else 
+        flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    
+    if (sampled)
+        flags |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+    
+    if (persistable)
+        flags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    
+    return flags;
+}
+
+
 VkImageViewType vkutils_get_image_view_type(VkExtent3D extents, size_t layers, VkImageCreateFlags flags)
 {
     if (flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT && layers % 6 == 0)
@@ -197,7 +215,7 @@ VkImageViewType vkutils_get_image_view_type(VkExtent3D extents, size_t layers, V
 }
 
 
-VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt)
+VkSampleCountFlagBits vkutils_sample_count_to_flag_bit(uint32_t sampleCnt)
 {
     VkSampleCountFlagBits sampleCntBits[] = {
         VK_SAMPLE_COUNT_1_BIT,
@@ -210,6 +228,14 @@ VkSampleCountFlagBits vkutils_get_sample_count_flag_bit(uint32_t sampleCnt)
     };
 
     return sampleCntBits[(uint32_t)std::log2(sampleCnt)];
+}
+
+
+size_t vkutils_sample_flag_bit_to_count(VkSampleCountFlagBits sample)
+{
+    int cnt{0};
+    while (sample & ( 1 << cnt++) == 0)
+    return cnt;
 }
 
 
