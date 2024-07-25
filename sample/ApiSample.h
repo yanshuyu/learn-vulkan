@@ -20,6 +20,7 @@ struct PerCameraData;
 struct PerObjectData;
 class Material;
 class FrameBuffer;
+class RenderTexture;
 
 
 class ApiSample : public Application
@@ -36,10 +37,12 @@ private:
 
     std::unique_ptr<RenderPass> _renderPass{};
     
-
+    /*
     VkImage m_DepthBuffer{VK_NULL_HANDLE};
     VkImageView m_DepthBufferView{VK_NULL_HANDLE};
     VkDeviceMemory m_DepthBufferMemory{VK_NULL_HANDLE};
+    */
+    std::unique_ptr<RenderTexture> m_DepthRT{};
     std::vector<std::unique_ptr<FrameBuffer>> m_SwapChainFrameBuffers{};
     
     // quad

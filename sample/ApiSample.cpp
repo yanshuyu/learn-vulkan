@@ -14,6 +14,7 @@
 #include<rendering\Texture2D.h>
 #include<rendering\TextureCube.h>
 #include<rendering\RenderData.h>
+#include<rendering\RenderTexture.h>
 #include<rendering\Material.h>
 #include<rendering\PipelineManager.h>
 #include<glm\gtc\matrix_transform.hpp>
@@ -297,6 +298,7 @@ void ApiSample::RecordDrawCommands(uint32_t swapChainImageIdx)
 bool ApiSample::CreateSwapChainFrameBuffers()
 {
     // depth buffer
+    /*
     VkImageCreateInfo depthBufferCreateInfo{VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
     depthBufferCreateInfo.imageType = VK_IMAGE_TYPE_2D;
     depthBufferCreateInfo.format = VK_FORMAT_D24_UNORM_S8_UINT;
@@ -322,7 +324,7 @@ bool ApiSample::CreateSwapChainFrameBuffers()
         return false;
     }
 
-    if(VKCALL_FAILED(vkBindImageMemory(m_pDevice->GetHandle(), m_DepthBuffer, m_DepthBufferMemory,  0 /*depthBufferMemReq.alignment*/)))
+    if(VKCALL_FAILED(vkBindImageMemory(m_pDevice->GetHandle(), m_DepthBuffer, m_DepthBufferMemory,  0 )))
     {
         LOGE("-->ApiSample: failed to bind device({}) memory!", (void*)m_pDevice.get());
         return false;
@@ -343,8 +345,9 @@ bool ApiSample::CreateSwapChainFrameBuffers()
         LOGE("-->ApiSample: failed to create depth buffer view!", (void*)m_pDevice.get());
         return false;
     }
-
-    RenderTarget depthRT = RenderTarget(m_DepthBufferView, depthBufferCreateInfo.format, depthBufferCreateInfo.extent.width, depthBufferCreateInfo.extent.height);
+    */
+    m_DepthRT.reset(new RenderTexture(m_pDevice.get(), RenderTextureDesc(VK_FORMAT_D24_UNORM_S8_UINT, m_pSwapChain->GetBufferSize().width, m_pSwapChain->GetBufferSize().height)));
+    RenderTarget depthRT = RenderTarget(m_DepthRT->GetView(), m_DepthRT->GetFormat(), m_DepthRT->GetWidth(), m_DepthRT->GetHeight());
     // frame buffer
     m_SwapChainFrameBuffers.reserve(m_pSwapChain->GetBufferCount());
     for (size_t i = 0; i < m_pSwapChain->GetBufferCount(); i++)
@@ -366,7 +369,8 @@ void ApiSample::DestroySwapChainFrameBuffers()
 {
 
     m_SwapChainFrameBuffers.clear();
-
+    m_DepthRT->Release();
+    /*
     if ( VKHANDLE_IS_NOT_NULL(m_DepthBufferView))
     {
         vkDestroyImageView(m_pDevice->GetHandle(), m_DepthBufferView, nullptr);
@@ -384,6 +388,7 @@ void ApiSample::DestroySwapChainFrameBuffers()
         m_pDevice->FreeMemory(m_DepthBufferMemory);
         VKHANDLE_SET_NULL(m_DepthBufferMemory);
     }
+    */
     
 }
 
